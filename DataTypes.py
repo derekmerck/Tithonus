@@ -65,6 +65,7 @@ class Study(object):
                  study_type=None,
                  physician=None,
                  institution=None,
+                 other_ids=None,
                  local_file=None):
 
         self.study_id = study_id
@@ -85,6 +86,9 @@ class Study(object):
         self.anon_physician = None
 
         self.data = None
+
+        # Indexed as repo:number...
+        self.other_ids = other_ids
 
         if self.anonymized:
             self.anon_study_id = self.study_id

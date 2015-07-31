@@ -185,7 +185,7 @@ def clear_queries(interface):
     # for q in DoGet(_REMOTE, '/queries'):
     #     DoDelete(_REMOTE, '/queries/%s' % q)
 
-def query(proxy_interface, aetitle, subject_id=None, subject_name=None, study_date=None, study_description=None, accession_number=None ):
+def query(interface, aetitle=None, subject_id=None, subject_name=None, study_date=None, study_description=None, accession_number=None ):
 
     # See <https://bitbucket.org/sjodogne/orthanc-tests/src/e07deb07289db660bac3bc6421a769264ca9929f/Tests/Tests.py?at=default#Tests.py-1428>
 
@@ -203,13 +203,23 @@ def query(proxy_interface, aetitle, subject_id=None, subject_name=None, study_da
         q['AccessionNumber'] = accession_number
     # TODO: Should be able to do imaging 'modality' too
 
-    data = json.dumps({'Level': 'Series', 'Query': q})
-    s = urljoin(proxy_interface.address, 'modalities', aetitle, 'query')
-    r = requests.post(s, data=data, auth=proxy_interface.auth)
-    logger.info(r.status_code)
-    qid = r.json()['ID']
-    logger.info(qid)
-    return qid
+    data = json.dumps({'Level': 'Study', 'Query': q})
+
+    if aetitle:
+        s = urljoin(interface.address, 'modalities', aetitle, 'query')
+        r = requests.post(s, data=data, auth=interface.auth)
+        logger.info(r.status_code)
+        qid = r.json()['ID']
+        logger.info(qid)
+        return qid
+    else:
+        s = urljoin(interface.address, 'tools/find')
+        r = requests.post(s, data=data, auth=interface.auth)
+        logger.info(r.status_code)
+        sids = r.json()
+        logger.info(sids)
+        return sids
+
 
 def retrieve_query_results(proxy_interface, qid):
 
@@ -220,17 +230,22 @@ def retrieve_query_results(proxy_interface, qid):
 
 if __name__ == "__main__":
 
-
+    # DICOM Server
     source_name = "3dlab-dev0"
     source0 = RepoInterface.get_interface_for_config(source_name, repos_config)
     logger.info(source0.studies())
 
+    # Orthanc REST proxy
     source_name = "3dlab-dev1"
     source1 = RepoInterface.get_interface_for_config(source_name, repos_config)
 
-    qid = query(source1, '3dlab-dev0', subject_name='ZNE*')
-    retrieve_query_results(source1, qid)
+    # qid = query(source1, aetitle='3dlab-dev0', subject_name='ZNE*')
+    # retrieve_query_results(source1, qid)
 
+    sids = query(source1, subject_name='ZNE*')
+    logger.info(sids[0])
+    study = source1.study_from_id(sids[0])
+    source1.download_study_archive(study, 'my_archive')
 
     exit()
 

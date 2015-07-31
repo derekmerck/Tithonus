@@ -182,6 +182,7 @@ class OrthancRepoInterface(RepoInterface):
                      subject_id=patient_info['MainDicomTags']['PatientID'],
                      subject_name=patient_info['MainDicomTags']['PatientName'],
                      subject_dob=patient_info['MainDicomTags']['PatientBirthDate'],
+                     other_ids={self: study_id},
                      institution="Rhode Island Hospital",
                      anonymized='AnonymizedFrom' in study_info
                      )
@@ -199,7 +200,11 @@ class OrthancRepoInterface(RepoInterface):
         return _studies
 
     def find_studies(self, query):
-        pass
+        params = {'query': query}
+        s = urljoin(self.address, 'find')
+        r = requests.put(s, params=params, auth=self.auth)
+        logger.info('orthanc find studies: %d' % r.status_code)
+        return r.content
 
     def proxy_find_studies(self, query, modality):
         params = {'query': query}
@@ -209,8 +214,8 @@ class OrthancRepoInterface(RepoInterface):
         return r.content
 
     def download_study_data(self, study):
-        logger.info('Downloading %s', self.address+'/studies/' + study.id + '/archive')
-        r = requests.get(self.address+'/studies/' + study.id + '/archive',
+        logger.info('Downloading %s', self.address+'/studies/' + study.study_id + '/archive')
+        r = requests.get(self.address+'/studies/' + study.other_ids[self] + '/archive',
                          auth=self.auth
                          )
         logger.info('orthanc dl status: %d' % r.status_code)

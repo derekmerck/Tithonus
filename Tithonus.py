@@ -210,7 +210,7 @@ def query(interface, aetitle=None, subject_id=None, subject_name=None, study_dat
         r = requests.post(s, data=data, auth=interface.auth)
         logger.info(r.status_code)
         qid = r.json()['ID']
-        logger.info(qid)
+        logger.info('qid: ' + qid)
         return qid
     else:
         s = urljoin(interface.address, 'tools/find')
@@ -220,10 +220,25 @@ def query(interface, aetitle=None, subject_id=None, subject_name=None, study_dat
         logger.info(sids)
         return sids
 
+def view_query_results(proxy_interface, qid, which):
 
-def retrieve_query_results(proxy_interface, qid):
+    r = requests.get(proxy_interface.address + '/queries', auth=('derek','3dlab'))
+    logger.info(r.request)
+    logger.info(r.status_code)
+    logger.info(r.text)
 
-    r = requests.post(proxy_interface.address + '/queries/%s/retrieve' % qid, data=proxy_interface.aetitle)
+    r = requests.get(proxy_interface.address + '/queries/%s/answers' % qid)
+    logger.info(r.status_code)
+    logger.info(r.text)
+
+    r = requests.get(proxy_interface.address + '/queries/%s/answers/%s/content?simplify' % (qid,which))
+    logger.info(r.status_code)
+    logger.info(r.text)
+
+
+def retrieve_query_results(proxy_interface, qid, which):
+
+    r = requests.post(proxy_interface.address + '/queries/%s/answers/%s/retrieve' % (qid, which), data=proxy_interface.aetitle)
     logger.info(r.status_code)
     logger.info(r.text)
 
@@ -231,21 +246,23 @@ def retrieve_query_results(proxy_interface, qid):
 if __name__ == "__main__":
 
     # DICOM Server
-    source_name = "3dlab-dev0"
+    source_name = "deathstar"
     source0 = RepoInterface.get_interface_for_config(source_name, repos_config)
-    logger.info(source0.studies())
+    logger.info('Studies on ' + source_name + ' : ' + '%s' % source0.studies())
 
-    # Orthanc REST proxy
-    source_name = "3dlab-dev1"
-    source1 = RepoInterface.get_interface_for_config(source_name, repos_config)
+    # # Orthanc REST proxy
+    # source_name = "3dlab-dev1"
+    # source1 = RepoInterface.get_interface_for_config(source_name, repos_config)
+    #
+#    qid = query(source0, aetitle='GEPACS', subject_name='DOE^JOHN*')
+#     qid = 'C94BF2FF-7276-4539-A12E-037A75B68426'
+#     view_query_results(source0, qid, 0)
+#     retrieve_query_results(source0, qid, 0)
 
-    # qid = query(source1, aetitle='3dlab-dev0', subject_name='ZNE*')
-    # retrieve_query_results(source1, qid)
-
-    sids = query(source1, subject_name='ZNE*')
+    sids = query(source0, subject_name='DOE^JOHN*')
     logger.info(sids[0])
-    study = source1.study_from_id(sids[0])
-    source1.download_study_archive(study, 'my_archive')
+    study = source0.study_from_id(sids[0])
+    source0.download_study_archive(study, 'my_archive')
 
     exit()
 

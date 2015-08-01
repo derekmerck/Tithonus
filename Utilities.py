@@ -1,22 +1,26 @@
-import logging
-logger = logging.getLogger('Tithonus.Utilities')
-logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+# import logging
+# logger = logging.getLogger('Tithonus.Utilities')
+# logger.setLevel(logging.DEBUG)
+# ch = logging.StreamHandler()
+# formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+# ch.setFormatter(formatter)
+# logger.addHandler(ch)
 
 # Zip wrapper
+
+import zipfile
+import os
+import io
 
 def zipdir(top, fno=None):
 
     file_like_object = None
     if fno is None:
-        logger.info('Creating in-memory zip')
+        # logger.info('Creating in-memory zip')
         file_like_object = io.BytesIO()
         zipf = zipfile.ZipFile(file_like_object, 'w', zipfile.ZIP_DEFLATED)
     else:
-        logger.info('Creating in-memory zip')
+        # logger.info('Creating in-memory zip')
         zipf = zipfile.ZipFile(fno, 'w', zipfile.ZIP_DEFLATED)
 
     for dirpath, dirnames, filenames in os.walk(top):

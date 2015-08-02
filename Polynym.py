@@ -1,6 +1,10 @@
 # Polynyms extend `dict` to provide a set of ids for different contexts
+#
+# The orthonym is the name that the anonym is derived/hashed from
+# Any other context may assign its own name to this object
 
 import hashlib
+import logging
 
 class Polynym(dict):
 
@@ -12,7 +16,7 @@ class Polynym(dict):
     def md5_rule(s):
         return hashlib.md5(s)
 
-    def __init__(self, o=None, pseudonyms=None, anonym_rule=None, working_context=''):
+    def __init__(self, o=None, pseudonyms=None, anonym_rule=None):
 
         super(Polynym, self).__init__()
         # Contexts are keys for the ids dictionary
@@ -22,7 +26,6 @@ class Polynym(dict):
             self.anonym_rule = anonym_rule
         else:
             self.anonym_rule = Polynym.identity_rule
-        self.working_context = working_context
 
         # An unqualified "id" is considered the orthonym (true name)
         # and will be returned as the default id
@@ -35,11 +38,13 @@ class Polynym(dict):
         if key == 'orthonym':
             anonym = self.anonym_rule(value)
             dict.__setitem__(self, 'anonym', anonym)
-        if key == 'anonym':
+            dict.__setitem__(self, 'orthonym', value)
+        elif key == 'anonym':
             if self.anonym_rule(self.get('orthonym')) != value:
                 dict.__setitem__(self, 'orthonym', None)
             dict.__setitem__(self, 'anonym', value)
-        dict.__setitem__(self, key, value)
+        else:
+            dict.__setitem__(self, key, value)
 
     @property
     def o(self):
@@ -60,30 +65,40 @@ class Polynym(dict):
     def a(self, value):
         self['anonym'] = value
 
-    @property
-    def w(self):
-        return self.get(self.working_context)
-
-    @w.setter
-    def w(self, value):
-        self[self.working_context] = value
-
     def __cmp__(self, other):
-        # Polynyms are considered equivalent if the share anonyms (same value and rule)
+        # Polynyms are considered equivalent if the share _anonyms_ (same value and rule)
         if self.a == other.a:
             return True
         else:
             return False
 
+def polynym_tests():
+
+    logger=logging.getLogger(Polynym.__name__)
+    logger.debug('Testing Polynym')
+
+    # Test creation
+    p = Polynym(o="Hi", anonym_rule=Polynym.md5_rule)
+    assert p.o == "Hi"
+    assert p.a.hexdigest() == 'c1a5298f939e87e8f962a5edfc206918'
+
+    # Test alter orthonym
+    p.o = 'Hello'
+    assert p.o == "Hello"
+    assert p.a.hexdigest() == '8b1a9953c4611296a827abf8c47804d7'
+
+    # Test alter anonym
+    p.a = 'Bonjour'
+    assert p.o == None
+    assert p.a == 'Bonjour'
+
+    # Test add new key
+    p['alias'] = 'Good day!'
+    assert p['alias'] == 'Good day!'
+
 
 if __name__ == "__main__":
 
-    p = Polynym(o="Hi", anonym_rule=Polynym.md5_rule)
-    print p.o
-    print p.a
-    p.o = 'Hello'
-    print p.o
-    print p.a
-    p.a = 'Bonjour'
-    print p.o
-    print p.a
+    logging.basicConfig(level=logging.DEBUG)
+    polynym_tests()
+

@@ -1,6 +1,8 @@
 
 from Interface import Interface
-from Study import Study, Subject
+from DICOMInterface import DICOMInterface
+from HierarchicalData import Study, Subject
+import logging
 
 class OrthancInterface(Interface):
     # <https://docs.google.com/spreadsheets/d/1muKHMIb9Br-59wfaQbDeLzAfKYsoWfDSXSmyt6P4EM8/pubhtml?gid=525933398&single=true>
@@ -68,19 +70,44 @@ class OrthancInterface(Interface):
 
         if source:
             # Checking a different modality
-            resp_id = self.do_post('modalities', source, 'query', data=data)['ID']
+            resp_id = self.do_post('modalities', source.aetitle, 'query', data=data).get('ID')
 
             answers = self.do_get('queries', resp_id, 'answers')
             for a in answers:
                 # Add to available studies, flag as present on source
-                self.do_get('queries', resp_id, 'answers', a, 'content?simplify')
+                worklist = self.do_get('queries', resp_id, 'answers', a, 'content?simplify')
+                # TODO: Process worklist id's to produce a list of studies...
+                # Each remote study must be tagged with id[source]=(query_id, answer_id)
 
         else:
             # Add to available studies
             worklist = self.do_post('tools/find', data=data)
+            # TODO: Process worklist id's to produce a list of studies...
 
-        # TODO: Process worklist id's to produce a list of studies...
         return worklist
+
+    def copy(self, worklist, source, target):
+        # TODO: Could put this in Interface b/c it calls derived functions, need send and retreive
+
+        for item in worklist:
+            # Figure out case
+            if isinstance(source, basestring) and (target is None or target is self):
+                # It's probably a file being uploaded
+                self.upload_archive(item, source)
+            elif source is self and isinstance(target, basestring):
+                # It's probably a file beign downloaded
+                self.download_archive(item, target)
+            elif source is self:
+                # Sending to DICOM modality or Orthanc peer
+                raise NotImplementedError
+            elif target is self:
+                # Retreiving from DICOM modality or Orthanc peer
+                if isinstance(source, DICOMInterface):
+                    # Copy from modality
+                    self.do_post('queries', item.study_id.get('query_id'), 'answers', item.study_id.get('answer_id'), data=self.aetitle)
+                else:
+                    raise NotImplementedError
+
 
     # Orthanc specific functions
 
@@ -118,13 +145,21 @@ class OrthancInterface(Interface):
         study.study_id[self, 'original'] = study.study_id[self]
         study.study_id[self] = anon_study_id
 
+def orthanc_tests():
+    logger = logging.getLogger('Orthanc-Tests')
+    source = OrthancInterface(address="http://localhost:8042")
+    source.all_studies()
+    logger.debug(source.studies)
+    assert '163acdef-fe16e651-3f35f584-68c2103f-59cdd09d' in source.studies.keys()
 
-if __name__ == "__main__":
-
-    source = OrthancInterface(address="http://localhost:8043")
-    # source.all_studies()
-    # print source.studies
     # source.download_archive(source.studies.values()[0], 'tmp_archive')
 
     # Query a different DICOM node
-    source.query('study', {'PatientName': 'ZNE*'}, '3dlab-dev0')
+    # r = source.query('study', {'PatientName': 'ZNE*'}, '3dlab-dev0')
+    #
+    # assert r['PatientID'] == u'ZA4VSDAUSJQA6'
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    orthanc_tests()

@@ -1,8 +1,9 @@
-
-# Also see: <https://pyscience.wordpress.com/2015/02/15/python-access-to-the-cancer-imaging-archive-tcia-through-a-rest-api/>
+# Reference: <https://pyscience.wordpress.com/2015/02/15/python-access-to-the-cancer-imaging-archive-tcia-through-a-rest-api/>
 
 from Interface import Interface
-from Study import Series, Study, Subject
+from HierarchicalData import Series, Study, Subject
+import logging
+import os
 
 class TCIAInterface(Interface):
 
@@ -50,7 +51,9 @@ class TCIAInterface(Interface):
         subject.subject_id[self] = subject_id
         return subject
 
-        # # This query is unfortunately quite indirect and ultimately useless -- the PatientUID is not mapped to a study id as far as I can tell
+        # This query is unfortunately quite indirect.  For some collections (CT COLONOGRAPHY) it is also useless, as
+        # the PatientUID is just the PatientUID
+
         # all_subjects_info = self.query('subject', project_id)
         # # List of entries sample: {u'PatientSex': u'F', u'PatientID': u'1.3.6.1.4.1.9328.50.4.0001', u'Collection': u'CT COLONOGRAPHY', u'PatientName': u'1.3.6.1.4.1.9328.50.4.0001'}
         #
@@ -94,10 +97,22 @@ class TCIAInterface(Interface):
         # Only has interface for "series"
         item.data = self.do_get('query/getImage', params={'SeriesInstanceUID': item.series_id[self]})
 
-if __name__ == "__main__":
+from nose.plugins.skip import SkipTest
 
+def tcia_tests():
+    raise SkipTest
+
+    logger = logging.getLogger(tcia_tests.__name__)
     source = TCIAInterface(address='https://services.cancerimagingarchive.net/services/v3/TCIA',
                            api_key='9cbfba6e-092e-4a31-84ae-63a201a28938')
 
     series = source.get_series_from_id('1.3.6.1.4.1.9328.50.4.15567')
     source.download_archive(series, 'tcia_tmp_series')
+    logger.debug(os.path.getsize('tcia_tmp_series.zip'))
+    assert os.path.getsize('tcia_tmp_series.zip') == 266582
+    os.remove('tcia_tmp_series.zip')
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    tcia_tests()

@@ -1,5 +1,6 @@
 from Interface import Interface
-from Study import Study, Subject
+from HierarchicalData import Study, Subject
+import logging
 
 class XNATInterface(Interface):
 
@@ -49,3 +50,16 @@ class XNATInterface(Interface):
                     'subjects', study.subject.subject_id[self],
                     'experiments', study.study_id[self], params=params)
 
+
+def xnat_tests():
+    # Need to test:
+    # 1. xnat-dev is up
+    # 2. mtp01 is empty
+    # 3. can upload a study to mtp01 w correct subject name, study name, etc.
+    # 4. can download the study from mtp01
+    pass
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    xnat_tests()

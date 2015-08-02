@@ -1,10 +1,12 @@
-from Utilities import zipdir
-
-import requests
 import json
 from posixpath import join as urljoin
 import logging
+import zipfile
 import os
+import io
+
+import requests
+
 
 class Interface(object):
 
@@ -18,9 +20,8 @@ class Interface(object):
             return OrthancInterface(config, name=name)
         elif config['type'] == 'orthanc':
             # TODO: prevent accidental infinite recursion
-            raise NotImplementedError
-            # proxy = Interface.facotry(config['proxy_name'], _config)
-            # return DICOMInterface(config.name)
+            proxy = Interface.factory(config['proxy'], _config)
+            return DICOMInterface(config.name)
         else:
             # logger.warn("Unknown repo type in config")
             pass
@@ -34,16 +35,19 @@ class Interface(object):
         self.auth = (kwargs.get('user'), kwargs.get('pword'))
         self.name = kwargs.get('name')
         self.api_key = kwargs.get('api_key')
+        self.proxy = kwargs.get('proxy')
+        # Should be "available studies" plus a registry of all studies somewhere else
         self.series = {}
         self.studies = {}
         self.subjects = {}
 
-        self.logger = logging.getLogger('Tithonus.Interface')
-        self.logger.setLevel(logging.DEBUG)
-        ch = logging.StreamHandler()
-        formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
-        ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.info('Created interface')
+        # self.logger.setLevel(logging.DEBUG)
+        # ch = logging.StreamHandler()
+        # formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+        # ch.setFormatter(formatter)
+        # self.logger.addHandler(ch)
 
     # Each interface needs a specialized factory for HDN types
     def subject_from_id(self, subject_id):
@@ -66,10 +70,11 @@ class Interface(object):
         # returns a WORKLIST, a list of session, study, or subject items
         raise NotImplementedError
 
-    def send(self, worklist, source=None, target=None):
+    def copy(self, worklist, source, target):
         # Sends data for items in WORKLIST from the source to the target
-        # if the source is self and the target is a file, it downloads
-        # if the source is a file and the target is self, it uploads
+        # if the source is self and the target is a string/file, it downloads
+        # if the source is a string/file and the target is self, it uploads
+        # if the source is a DICOM node and the target is self, it retrieves
         raise NotImplementedError
 
     # Each interface needs to implement methods for moving data around
@@ -84,7 +89,11 @@ class Interface(object):
     def do_return(self, r):
         # Return dict if possible, but content otherwise (for image data)
         #self.logger.info(r.headers.get('content-type'))
-        if r.headers.get('content-type') == 'application/json':
+        if r.status_code is not 200:
+            self.logger.warn('REST interface returned error %s', r.status_code)
+            ret = r.content
+            msg = ret
+        elif r.headers.get('content-type') == 'application/json':
             try:
                 ret = r.json()
                 if len(ret) < 50:
@@ -144,7 +153,7 @@ class Interface(object):
     def upload_archive(self, item, fn):
         if os.path.isdir(fn):
             self.logger.info('Uploading image folder %s', fn)
-            item.data = zipdir(fn)
+            item.data = self.zipdir(fn)
         elif os.path.isfile(fn):
             self.logger.info('Uploading image archive %s', fn)
             f = open(fn, 'rb')
@@ -159,8 +168,36 @@ class Interface(object):
             f.write(item.data)
             f.close()
 
+    def zipdir(top, fno=None):
+
+        file_like_object = None
+        if fno is None:
+            # logger.info('Creating in-memory zip')
+            file_like_object = io.BytesIO()
+            zipf = zipfile.ZipFile(file_like_object, 'w', zipfile.ZIP_DEFLATED)
+        else:
+            # logger.info('Creating in-memory zip')
+            zipf = zipfile.ZipFile(fno, 'w', zipfile.ZIP_DEFLATED)
+
+        for dirpath, dirnames, filenames in os.walk(top):
+            for f in filenames:
+                fn = os.path.join(dirpath, f)
+                zipf.write(fn, os.path.relpath(fn, top))
+
+        if fno is None:
+            return file_like_object
+        else:
+            zipf.close()
+
+
+def interface_tests():
+
+
+    # Test instatiation
+    interface = Interface(address="http://localhost:8042")
+    assert interface.do_get('studies') == [u'163acdef-fe16e651-3f35f584-68c2103f-59cdd09d']
+
 
 if __name__ == "__main__":
-
-    interface = Interface(address="http://localhost:8042")
-    interface.do_get('studies')
+    logging.basicConfig(level=logging.DEBUG)
+    interface_tests()

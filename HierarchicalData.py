@@ -1,4 +1,5 @@
 from Polynym import Polynym
+import logging
 
 class HierarchicalDataNode(object):
     """
@@ -11,6 +12,7 @@ class HierarchicalDataNode(object):
         self.parent = parent
         self.children = children
         self.data = data
+        self.logger = logging.getLogger(self.__class__.__name__)
 
 
 class Instance(HierarchicalDataNode):
@@ -19,6 +21,7 @@ class Instance(HierarchicalDataNode):
     def __init__(self, instance_id=None, parent=None, anonym_rule=None):
         super(Instance, self).__init__(parent=parent)
         self.instance_id = Polynym(instance_id, anonym_rule=anonym_rule)
+        self.logger.debug('Created new instance %s', self.instance_id.o)
 
 
 class Series(HierarchicalDataNode):
@@ -54,7 +57,7 @@ class Study(HierarchicalDataNode):
         self.study_id['accession']=value
 
     def __str__(self):
-        return "{0}/{1}({2})".format(self.study_id.o, self.study_id.w, self.subject.subject_name.o)
+        return "{0}/{1}".format(self.study_id.o, self.study_id.a)
 
     def __repr__(self):
         return self.__str__()
@@ -91,6 +94,12 @@ class Subject(HierarchicalDataNode):
         self.dob = Polynym(subject_dob)
         self.home_institution = ''  # For project tracking
 
+    def __str__(self):
+        return "{0}/{1}".format(self.subject_id.o, self.subject_id.a)
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class Project(HierarchicalDataNode):
     # This is a root node, it has no parents, children are subjects
@@ -100,9 +109,15 @@ class Project(HierarchicalDataNode):
         self.project_id = project_id
         self.subjects = children
 
+
+def hdn_tests():
+
+    # Test instantiation & polynym
+    item = Instance('Hi', anonym_rule=Polynym.md5_rule)
+    assert item.instance_id.o == 'Hi'
+    assert item.instance_id.a.hexdigest() == 'c1a5298f939e87e8f962a5edfc206918'
+
 if __name__ == "__main__":
 
-    item = Instance('my_item', anonym_rule=Polynym.md5_rule)
-
-    print item.instance_id.o
-    print item.instance_id.a
+    logging.basicConfig(level=logging.DEBUG)
+    hdn_tests()

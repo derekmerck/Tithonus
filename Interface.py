@@ -6,11 +6,6 @@ from posixpath import join as urljoin
 import logging
 import os
 
-from OrthancInterface import OrthancInterface
-from XNATInterface import XNATInterface
-# import TCIAInterface
-# import DICOMInterface
-
 class Interface(object):
 
     @classmethod
@@ -37,6 +32,8 @@ class Interface(object):
         self.address = kwargs.get('address')
         self.aetitle = kwargs.get('aetitle')
         self.auth = (kwargs.get('user'), kwargs.get('pword'))
+        self.name = kwargs.get('name')
+        self.api_key = kwargs.get('api_key')
         self.series = {}
         self.studies = {}
         self.subjects = {}
@@ -55,7 +52,7 @@ class Interface(object):
     def study_from_id(self, study_id):
         raise NotImplementedError
 
-    def session_from_id(self, session_id):
+    def series_from_id(self, series_id):
         raise NotImplementedError
 
     # Each interface needs to be able to run query/retreives to identify data sets
@@ -90,7 +87,10 @@ class Interface(object):
         if r.headers.get('content-type') == 'application/json':
             try:
                 ret = r.json()
-                msg = ret
+                if len(ret) < 50:
+                    msg = ret
+                else:
+                    msg = 'a long json declaration'
             except ValueError, e:
                 ret = r.content
                 msg = 'bad json declaration'

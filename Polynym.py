@@ -12,13 +12,16 @@ class Polynym(dict):
     def md5_rule(s):
         return hashlib.md5(s)
 
-    def __init__(self, o=None, pseudonyms=None, anonym_rule=identity_rule, working_context=''):
+    def __init__(self, o=None, pseudonyms=None, anonym_rule=None, working_context=''):
 
         super(Polynym, self).__init__()
         # Contexts are keys for the ids dictionary
 
         # Whenever the orthonym is set, it will call this rule and set the 'anonym' propery
-        self.anonym_rule = anonym_rule
+        if anonym_rule:
+            self.anonym_rule = anonym_rule
+        else:
+            self.anonym_rule = Polynym.identity_rule
         self.working_context = working_context
 
         # An unqualified "id" is considered the orthonym (true name)
@@ -33,7 +36,7 @@ class Polynym(dict):
             anonym = self.anonym_rule(value)
             dict.__setitem__(self, 'anonym', anonym)
         if key == 'anonym':
-            if self.anonym_rule(self['orthonym']) != value:
+            if self.anonym_rule(self.get('orthonym')) != value:
                 dict.__setitem__(self, 'orthonym', None)
             dict.__setitem__(self, 'anonym', value)
         dict.__setitem__(self, key, value)

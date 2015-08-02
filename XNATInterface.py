@@ -52,6 +52,9 @@ class XNATInterface(Interface):
 
 
 def xnat_tests():
+
+    logger = logging.getLogger(xnat_tests.__name__)
+
     # Need to test:
     # 1. xnat-dev is up
     # 2. mtp01 is empty

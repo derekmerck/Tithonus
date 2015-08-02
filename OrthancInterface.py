@@ -3,6 +3,7 @@ from Interface import Interface
 from DICOMInterface import DICOMInterface
 from HierarchicalData import Study, Subject
 import logging
+import os
 
 class OrthancInterface(Interface):
     # <https://docs.google.com/spreadsheets/d/1muKHMIb9Br-59wfaQbDeLzAfKYsoWfDSXSmyt6P4EM8/pubhtml?gid=525933398&single=true>
@@ -146,17 +147,23 @@ class OrthancInterface(Interface):
         study.study_id[self] = anon_study_id
 
 def orthanc_tests():
-    logger = logging.getLogger('Orthanc-Tests')
+
+    logger = logging.getLogger(orthanc_tests.__name__)
+
+    # Instantiate
     source = OrthancInterface(address="http://localhost:8042")
     source.all_studies()
     logger.debug(source.studies)
     assert '163acdef-fe16e651-3f35f584-68c2103f-59cdd09d' in source.studies.keys()
 
-    # source.download_archive(source.studies.values()[0], 'tmp_archive')
+    # Test Download
+    source.download_archive(source.studies.values()[0], 'orthanc_tmp_archive')
+    assert os.path.getsize('orthanc_tmp_archive.zip') == 35884083
+    os.remove('orthanc_tmp_archive.zip')
 
+    # TODO: Orthanc query DICOM node
     # Query a different DICOM node
     # r = source.query('study', {'PatientName': 'ZNE*'}, '3dlab-dev0')
-    #
     # assert r['PatientID'] == u'ZA4VSDAUSJQA6'
 
 

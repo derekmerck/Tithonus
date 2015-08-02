@@ -4,26 +4,28 @@ import logging
 import zipfile
 import os
 import io
-
 import requests
-
 
 class Interface(object):
 
     @classmethod
-    def factory(name, _config):
+    def factory(cls, name, _config):
+        from OrthancInterface import OrthancInterface
+        from XNATInterface import XNATInterface
+        from DICOMInterface import DICOMInterface
+
         # Accepts a config dict and returns an interface
         config = _config[name]
         if config['type'] == 'xnat':
-            return XNATInterface(config, name=name)
+            return XNATInterface(name=name, **config)
         elif config['type'] == 'orthanc':
-            return OrthancInterface(config, name=name)
+            return OrthancInterface(name=name, **config)
         elif config['type'] == 'orthanc':
-            # TODO: prevent accidental infinite recursion
             proxy = Interface.factory(config['proxy'], _config)
-            return DICOMInterface(config.name)
+            return DICOMInterface(name=name, proxy=proxy, **config)
         else:
-            # logger.warn("Unknown repo type in config")
+            logger = logging.getLogger(Interface.factory.__name__)
+            logger.warn("Unknown repo type in config")
             pass
 
         return interface
@@ -192,12 +194,19 @@ class Interface(object):
 
 def interface_tests():
 
+    logger = logging.getLogger(interface_tests.__name__)
 
-    # Test instatiation
+    # Instatiation
     interface = Interface(address="http://localhost:8042")
+    assert interface.do_get('studies') == [u'163acdef-fe16e651-3f35f584-68c2103f-59cdd09d']
+
+    # Factory
+    interface = Interface.factory('test', {'test': {'type': 'orthanc', 'address': 'http://localhost:8042'}})
     assert interface.do_get('studies') == [u'163acdef-fe16e651-3f35f584-68c2103f-59cdd09d']
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     interface_tests()
+
+

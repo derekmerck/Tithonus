@@ -54,6 +54,7 @@ class TCIAInterface(Interface):
         # This query is unfortunately quite indirect.  For some collections (CT COLONOGRAPHY) it is also useless, as
         # the PatientUID is just the PatientUID
 
+        # TODO: this is actually correct and should be reimplemented
         # all_subjects_info = self.query('subject', project_id)
         # # List of entries sample: {u'PatientSex': u'F', u'PatientID': u'1.3.6.1.4.1.9328.50.4.0001', u'Collection': u'CT COLONOGRAPHY', u'PatientName': u'1.3.6.1.4.1.9328.50.4.0001'}
         #
@@ -100,17 +101,20 @@ class TCIAInterface(Interface):
 from nose.plugins.skip import SkipTest
 
 def tcia_tests():
+    # The TCIA interface is very slow, so uncomment to skip this one
     raise SkipTest
 
     logger = logging.getLogger(tcia_tests.__name__)
-    source = TCIAInterface(address='https://services.cancerimagingarchive.net/services/v3/TCIA',
-                           api_key='9cbfba6e-092e-4a31-84ae-63a201a28938')
 
+    # Instantiate
+    source = TCIAInterface(address='https://services.cancerimagingarchive.net/services/v3/TCIA',
+                           api_key=os.environ['TCIA_API_KEY'])
+
+    # Test Download
     series = source.get_series_from_id('1.3.6.1.4.1.9328.50.4.15567')
-    source.download_archive(series, 'tcia_tmp_series')
-    logger.debug(os.path.getsize('tcia_tmp_series.zip'))
-    assert os.path.getsize('tcia_tmp_series.zip') == 266582
-    os.remove('tcia_tmp_series.zip')
+    source.download_archive(series, 'tcia_tmp_archive')
+    assert os.path.getsize('tcia_tmp_archive.zip') == 266582
+    os.remove('tcia_tmp_archive.zip')
 
 
 if __name__ == "__main__":

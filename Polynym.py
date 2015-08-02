@@ -74,20 +74,19 @@ class Polynym(dict):
 
 def polynym_tests():
 
-    logger=logging.getLogger(Polynym.__name__)
-    logger.debug('Testing Polynym')
+    logger=logging.getLogger(polynym_tests.__name__)
 
-    # Test creation
+    # Instantiate
     p = Polynym(o="Hi", anonym_rule=Polynym.md5_rule)
     assert p.o == "Hi"
     assert p.a.hexdigest() == 'c1a5298f939e87e8f962a5edfc206918'
 
-    # Test alter orthonym
+    # Test modify orthonym
     p.o = 'Hello'
     assert p.o == "Hello"
     assert p.a.hexdigest() == '8b1a9953c4611296a827abf8c47804d7'
 
-    # Test alter anonym
+    # Test modify anonym
     p.a = 'Bonjour'
     assert p.o == None
     assert p.a == 'Bonjour'

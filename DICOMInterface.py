@@ -15,10 +15,17 @@ class DICOMInterface(Interface):
         self.proxy.download_data(item)
 
 def dicom_tests():
+
+    logger = logging.getLogger(dicom_tests.__name__)
+
+    # Instantiate
     from OrthancInterface import OrthancInterface
     proxy = OrthancInterface(address='http://localhost:8043', aetitle='3dlab-dev1')
     source = DICOMInterface(proxy=proxy, aetitle='3dlab-dev0')
-    source.query('Patient', {'PatientName': 'ZNE*'})
+
+    # Test query-by-proxy
+    r = source.query('Patient', {'PatientName': 'ZNE*'})
+    assert r['PatientID'] == 'ZA4VSDAUSJQA6'
 
 
 if __name__ == "__main__":

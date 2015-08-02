@@ -112,6 +112,8 @@ class Project(HierarchicalDataNode):
 
 def hdn_tests():
 
+    logger = logging.getLogger(hdn_tests.__name__)
+
     # Test instantiation & polynym
     item = Instance('Hi', anonym_rule=Polynym.md5_rule)
     assert item.instance_id.o == 'Hi'

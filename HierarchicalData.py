@@ -123,3 +123,69 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
     hdn_tests()
+
+
+'''
+# Entities and Relationships
+
+- Instance (an image)
+  - repo_ids {}
+  - ParentSeries
+
+- Series (ordered set of images)
+  - repo_ids {}
+  - id -- Is there an equivalent of accession # for series?
+  - psid (pseudo-id)
+  - protocol: Chest w/wo
+  - protocol: Pre/intra/post
+  - ParentStudy
+
+  s = Series(id, interface)
+  s.get_data(interface)
+
+- Study (set of series)
+  - repo_ids {}
+  - id (typically accession number)
+  - psid
+  - protocol: (Study Description?  Baseline/1Month/2Month????)
+  - study_date
+  - Physician/Investigator
+  - ParentInstitution
+  - ParentSubject
+  - ParentProjects [] (belongs to which projects)
+
+- Visit
+  - type
+  - Studies (usually a single accession, not always)
+
+- Subject (set of studies)
+  - id (ie, MRN)
+  - psid
+  - repo_ids {}
+  - name
+  - pname
+  - dob
+  - pdob
+  - ParentInstitution
+  - ParentProjects [] (enrolled in which projects, has studies in which projects)
+
+- Project (set of subjects, studies, protocols)
+  - id
+  - name
+  - Studies
+
+- StudyProtocol/Purpose
+  - Diagnostic/Pre/Post/Followup
+  - Anatomic site
+
+- Institution
+  - Name
+  - ProjectIDs {}: institutions may in involved in multiple projects
+  - Physicians/Investigators
+
+- Physician/Investigator
+  - id
+  - name
+  - pname
+  - Studies
+'''

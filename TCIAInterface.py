@@ -5,6 +5,7 @@ from HierarchicalData import Series, Study, Subject
 import logging
 import os
 
+
 class TCIAInterface(Interface):
 
     def do_get(self, *url, **kwargs):
@@ -22,7 +23,7 @@ class TCIAInterface(Interface):
         super(TCIAInterface, self).__init__(**kwargs)
 
     def get_series_from_id(self, series_id):
-        series_info = self.query('series', series_id)
+        series_info = self.find('series', series_id)
         # Sample series info:
         # [{u'SeriesDate': u'2000-01-01', u'SeriesNumber': u'1.000000', u'SeriesDescription': u'Topogram  0.6  T20s', u'Collection': u'CT COLONOGRAPHY', u'BodyPartExamined': u'COLON', u'SoftwareVersions': u'syngo CT 2005A', u'Visibility': u'1', u'ProtocolName': u'14_SUPINE_COLON', u'StudyInstanceUID': u'1.3.6.1.4.1.9328.50.4.15566', u'SeriesInstanceUID': u'1.3.6.1.4.1.9328.50.4.15567', u'ManufacturerModelName': u'Sensation 64', u'Modality': u'CT', u'ImageCount': 1, u'Manufacturer': u'SIEMENS'}]
 
@@ -32,9 +33,8 @@ class TCIAInterface(Interface):
         series.series_id[self] = series_id
         return series
 
-
     def get_study_from_id(self, study_id):
-        study_info = self.query('study', study_id)
+        study_info = self.find('study', study_id)
         # Sample study info:
         # [{u'StudyDate': u'2000-01-01', u'StudyDescription': u'Abdomen^14_SUPINE_COLON (Adult)', u'PatientID': u'1.3.6.1.4.1.9328.50.4.0016', u'Collection': u'CT COLONOGRAPHY', u'PatientAge': u'052Y', u'PatientSex': u'F', u'StudyInstanceUID': u'1.3.6.1.4.1.9328.50.4.15566', u'PatientName': u'1.3.6.1.4.1.9328.50.4.0016', u'SeriesCount': 3}]
 
@@ -44,7 +44,6 @@ class TCIAInterface(Interface):
         study = Study(study_id, parent=subject)
         study.study_id[self] = study_id
         return study
-
 
     def get_subject_from_id(self, subject_id, project_id):
         subject = Subject(subject_id)
@@ -71,8 +70,7 @@ class TCIAInterface(Interface):
         # subject.subject_id[self] = subject_id
         # return subject
 
-
-    def query(self, level, question, source=None):
+    def find(self, level, question, source=None):
 
         url = None
         params = None
@@ -100,6 +98,7 @@ class TCIAInterface(Interface):
 
 from nose.plugins.skip import SkipTest
 
+
 def tcia_tests():
     # The TCIA interface is very slow, so uncomment to skip this one
     raise SkipTest
@@ -110,13 +109,18 @@ def tcia_tests():
     source = TCIAInterface(address='https://services.cancerimagingarchive.net/services/v3/TCIA',
                            api_key=os.environ['TCIA_API_KEY'])
 
-    # Test Download
+    # Test download
     series = source.get_series_from_id('1.3.6.1.4.1.9328.50.4.15567')
     source.download_archive(series, 'tcia_tmp_archive')
     assert os.path.getsize('tcia_tmp_archive.zip') == 266582
     os.remove('tcia_tmp_archive.zip')
 
+    # Test copy syntax download
+    source.copy(series, source, 'tcia_tmp_archive')
+    assert os.path.getsize('tcia_tmp_archive.zip') == 266582
+    os.remove('tcia_tmp_archive.zip')
 
 if __name__ == "__main__":
+
     logging.basicConfig(level=logging.DEBUG)
     tcia_tests()

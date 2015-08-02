@@ -8,6 +8,10 @@ import requests
 
 class Interface(object):
 
+    # -----------------------------
+    # Public factory
+    # -----------------------------
+
     @classmethod
     def factory(cls, name, _config):
         from OrthancInterface import OrthancInterface
@@ -28,7 +32,9 @@ class Interface(object):
             logger.warn("Unknown repo type in config")
             pass
 
-        return interface
+    # -----------------------------
+    # Baseclass __init__
+    # -----------------------------
 
     def __init__(self, **kwargs):
         super(Interface, self).__init__()
@@ -45,13 +51,50 @@ class Interface(object):
 
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info('Created interface')
-        # self.logger.setLevel(logging.DEBUG)
-        # ch = logging.StreamHandler()
-        # formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
-        # ch.setFormatter(formatter)
-        # self.logger.addHandler(ch)
 
-    # Each interface needs a specialized factory for HDN types
+    # -----------------------------
+    # Abstract Public API:
+    # - find
+    # - send
+    # - receive
+    # - delete
+    # -----------------------------
+
+    # TODO: Rename to find ...
+    def find(self, level, question, source=None):
+        # Level is a HDN type: subject, studies, or series
+        # Question is a dictionary of property names and values
+        # by default, the source is _this_ interface,
+        # returns a WORKLIST, a list of session, study, or subject items
+        raise NotImplementedError
+
+    def retrieve(self, item, source):
+        raise NotImplementedError
+
+    def send(self, item, target):
+        raise NotImplementedError
+
+    def delete(self, worklist):
+        raise NotImplementedError
+
+    # -----------------------------
+    # Abstract Private/Hidden API:
+    # - upload_data
+    # - download_data
+    # - subject_from_id
+    # - study_from_id
+    # - series_from_id
+    # - all_studies (optional)
+    # -----------------------------
+
+    # Each interface needs to implement methods for moving data around
+    def upload_data(self, item):
+        raise NotImplementedError
+
+    def download_data(self, item):
+        raise NotImplementedError
+
+    # Factories for HDN types
     def subject_from_id(self, subject_id):
         raise NotImplementedError
 
@@ -61,32 +104,74 @@ class Interface(object):
     def series_from_id(self, series_id):
         raise NotImplementedError
 
-    # Each interface needs to be able to run query/retreives to identify data sets
+    # Optional but frequently useful shortcut
     def all_studies(self):
         raise NotImplementedError
 
-    def query(self, level, question, source=None):
-        # Level is a HDN type: subject, studies, or series
-        # Question is a dictionary of property names and values
-        # by default, the source is this interface,
-        # returns a WORKLIST, a list of session, study, or subject items
-        raise NotImplementedError
+    # -----------------------------
+    # Baseclass Public API:
+    # - copy
+    # - move
+    # - upload_archive
+    # - download_archive
+    # -----------------------------
 
-    def copy(self, worklist, source, target):
+    def copy(self, worklist, source, target, anonymize=False):
         # Sends data for items in WORKLIST from the source to the target
         # if the source is self and the target is a string/file, it downloads
         # if the source is a string/file and the target is self, it uploads
         # if the source is a DICOM node and the target is self, it retrieves
-        raise NotImplementedError
 
-    # Each interface needs to implement methods for moving data around
-    def upload_data(self, item):
-        pass
+        # TODO: Create anonymized study if necessary and delete it when done
 
-    def download_data(self, item):
-        pass
+        if not hasattr(worklist, '__iter__'):
+            worklist = [worklist]
 
-    # Helper functions
+        for item in worklist:
+            # Figure out case
+            if isinstance(source, basestring) and (target is None or target is self):
+                # It's probably a file being uploaded
+                self.upload_archive(item, source)
+            elif source is self and isinstance(target, basestring):
+                # It's probably a file being downloaded
+                self.download_archive(item, target)
+            elif source is self:
+                # Sending to DICOM modality or Orthanc peer
+                self.send(item, target)
+            elif target is self:
+                self.retrieve(item, source)
+
+    def move(self, worklist, source, target, anonymize=False):
+        self.copy(worklist, source, target, anonymize)
+        self.delete(worklist)
+
+    def upload_archive(self, item, fn):
+        if os.path.isdir(fn):
+            self.logger.info('Uploading image folder %s', fn)
+            item.data = self.zipdir(fn)
+        elif os.path.isfile(fn):
+            self.logger.info('Uploading image archive %s', fn)
+            f = open(fn, 'rb')
+            item.data = f.read()
+        self.upload_data(item)
+
+    def download_archive(self, item, fn):
+        self.logger.info('Downloading image archive %s', fn)
+        self.download_data(item)
+        if fn is not None:
+            f = open(fn + '.zip', 'wb')
+            f.write(item.data)
+            f.close()
+
+    # -----------------------------
+    # Private/Hidden Helpers
+    # - do_get
+    # - do_post
+    # - do_put
+    # - do_delete
+    # - do_return
+    # - zipdir
+    # -----------------------------
 
     def do_return(self, r):
         # Return dict if possible, but content otherwise (for image data)
@@ -151,24 +236,6 @@ class Interface(object):
         self.logger.debug('Posting to url: %s' % url)
         r = requests.post(url, params=params, headers=headers, auth=self.auth, data=data)
         return self.do_return(r)
-
-    def upload_archive(self, item, fn):
-        if os.path.isdir(fn):
-            self.logger.info('Uploading image folder %s', fn)
-            item.data = self.zipdir(fn)
-        elif os.path.isfile(fn):
-            self.logger.info('Uploading image archive %s', fn)
-            f = open(fn, 'rb')
-            item.data = f.read()
-        self.upload_data(item)
-
-    def download_archive(self, item, fn):
-        self.logger.info('Downloading image archive %s', fn)
-        self.download_data(item)
-        if fn is not None:
-            f = open(fn + '.zip', 'wb')
-            f.write(item.data)
-            f.close()
 
     def zipdir(top, fno=None):
 

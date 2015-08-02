@@ -7,8 +7,8 @@ class DICOMInterface(Interface):
     def __init__(self, **kwargs):
         super(DICOMInterface, self).__init__(**kwargs)
 
-    def query(self, level, question, source=None):
-        return self.proxy.query(level, question, self)
+    def find(self, level, question, source=None):
+        return self.proxy.find(level, question, self)
 
     def download_data(self, item):
         self.proxy.copy(item, self, self.proxy)
@@ -24,8 +24,11 @@ def dicom_tests():
     source = DICOMInterface(proxy=proxy, aetitle='3dlab-dev0')
 
     # Test query-by-proxy
-    r = source.query('Patient', {'PatientName': 'ZNE*'})
+    r = source.find('Patient', {'PatientName': 'ZNE*'})
     assert r['PatientID'] == 'ZA4VSDAUSJQA6'
+
+    # Test download
+    source.download_archive()
 
 
 if __name__ == "__main__":

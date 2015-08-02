@@ -1,4 +1,3 @@
-
 from Interface import Interface
 from DICOMInterface import DICOMInterface
 from HierarchicalData import Study, Subject
@@ -11,7 +10,7 @@ class OrthancInterface(Interface):
     def __init__(self, **kwargs):
         super(OrthancInterface, self).__init__(**kwargs)
 
-    # Factory functions
+    # Derived Class Implementations
     def series_from_id(self, series_id):
         raise NotImplementedError
 
@@ -54,21 +53,9 @@ class OrthancInterface(Interface):
         self.subjects[subject_id] = subject
         return subject
 
-
-    def download_data(self, study):
-        study.data = self.do_get('studies', study.study_id[self], 'archive')
-
-    def upload_data(self, study):
-        # If there is study.data, send it.
-        # If there is study.available_on_source, retreive it and create a new id
-        pass
-
-    def query(self, level, question, source=None):
+    def find(self, level, query, source=None):
         worklist = None
-
-        data = {'Level': level,
-                'Query': question}
-
+        data = {'Level': level, 'Query': query}
         if source:
             # Checking a different modality
             resp_id = self.do_post('modalities', source.aetitle, 'query', data=data).get('ID')
@@ -79,7 +66,6 @@ class OrthancInterface(Interface):
                 worklist = self.do_get('queries', resp_id, 'answers', a, 'content?simplify')
                 # TODO: Process worklist id's to produce a list of studies...
                 # Each remote study must be tagged with id[source]=(query_id, answer_id)
-
         else:
             # Add to available studies
             worklist = self.do_post('tools/find', data=data)
@@ -87,34 +73,30 @@ class OrthancInterface(Interface):
 
         return worklist
 
-    def copy(self, worklist, source, target):
-        # TODO: Could put this in Interface b/c it calls derived functions, need send and retreive
+    def send(self, item, target):
+        raise NotImplementedError
 
-        for item in worklist:
-            # Figure out case
-            if isinstance(source, basestring) and (target is None or target is self):
-                # It's probably a file being uploaded
-                self.upload_archive(item, source)
-            elif source is self and isinstance(target, basestring):
-                # It's probably a file beign downloaded
-                self.download_archive(item, target)
-            elif source is self:
-                # Sending to DICOM modality or Orthanc peer
-                raise NotImplementedError
-            elif target is self:
-                # Retreiving from DICOM modality or Orthanc peer
-                if isinstance(source, DICOMInterface):
-                    # Copy from modality
-                    self.do_post('queries', item.study_id.get('query_id'), 'answers', item.study_id.get('answer_id'), data=self.aetitle)
-                else:
-                    raise NotImplementedError
+    def retreive(self, item, source):
+        # Retreiving from DICOM modality or Orthanc peer
+        if isinstance(source, DICOMInterface):
+            # Copy from modality
+            self.do_post('queries', item.study_id.get('query_id'), 'answers', item.study_id.get('answer_id'), data=self.aetitle)
+        else:
+            raise NotImplementedError
 
+    def download_data(self, study):
+        study.data = self.do_get('studies', study.study_id[self], 'archive')
 
-    # Orthanc specific functions
+    def upload_data(self, study):
+        # If there is study.data, send it.
+        # If there is study.available_on_source, retreive it and create a new id
+        pass
 
     def all_studies(self):
         study_ids = self.do_get('studies')
         self.studies = {study_id: self.study_from_id(study_id) for study_id in study_ids}
+
+    # Orthanc ONLY functions
 
     def anonymize(self, study):
 
@@ -145,6 +127,7 @@ class OrthancInterface(Interface):
         # Can unlink original data
         study.study_id[self, 'original'] = study.study_id[self]
         study.study_id[self] = anon_study_id
+
 
 def orthanc_tests():
 

@@ -1,5 +1,5 @@
 from Interface import Interface
-from HierarchicalData import Study, Subject
+from HierarchicalData import Series, Study, Subject
 import logging
 
 class XNATInterface(Interface):
@@ -9,37 +9,45 @@ class XNATInterface(Interface):
     def __init__(self, **kwargs):
         super(XNATInterface, self).__init__(**kwargs)
 
+    def series_from_id(self, series_id):
+        return Series(series_id)
+
     def study_from_id(self, study_id):
+        # TODO: This isn't quite right -- need to build studies and subjects correctly
         return Study(study_id)
 
     def subject_from_id(self, subject_id):
-        return Study(study_id)
+        return Subject(subject_id)
 
     def all_studies(self):
         resp = self.do_get('data/experiments')
         # Find all of the data labels
         results = resp.get('ResultSet').get('Result')
-        # TODO: This isn't quite right -- need to build studies and subjects correctly
-        _studies = [Study(result['ID'], accession=result['label']) for result in results]
+        _studies = [Study(result['ID']) for result in results]
         return _studies
 
-    def upload_data(self, study):
-        """See <https://wiki.xnat.org/display/XKB/Uploading+Zip+Archives+to+XNAT>"""
+    def upload_data(self, item):
+        # See <https://wiki.xnat.org/display/XKB/Uploading+Zip+Archives+to+XNAT>
 
         params = {'overwrite': 'delete',
-                  'project': study.subject.project.project_id,
-                  'subject': study.subject.subject_id,
-                  'session': study.study_id}
+                  'project': item.subject.project.project_id,
+                  'subject': item.subject.subject_id,
+                  'session': item.study_id}
         headers = {'content-type': 'application/zip'}
-        self.do_post('data/services/import?format=html', params=params, headers=headers, data=study.data)
+        self.do_post('data/services/import?format=html', params=params, headers=headers, data=item.data)
 
-    def delete_study(self, study):
+    def delete(self, worklist):
         # Unfortunately need the project for a delete, but perhaps easier with a 'root' proj
         # TODO: Test xnat delete
-        params = {'remove_files': 'true'}
-        self.do_delete('data/archive/projects', study.subject.project.project_id,
-                       'subjects', study.subject.subject_id[self],
-                       'experiments', study.study_id[self], params=params)
+
+        if not hasattr(worklist, '__iter__'):
+            worklist = [worklist]
+
+        for item in worklist:
+            params = {'remove_files': 'true'}
+            self.do_delete('data/archive/projects', item.subject.project.project_id,
+                           'subjects', item.subject.subject_id[self],
+                           'experiments', item.study_id[self], params=params)
 
     # XNAT specific
 
@@ -64,5 +72,6 @@ def xnat_tests():
 
 
 if __name__ == "__main__":
+
     logging.basicConfig(level=logging.DEBUG)
     xnat_tests()

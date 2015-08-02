@@ -46,6 +46,23 @@ optional arguments:
   --delete_deidentified   Remove deidentified data from local after download
 ```
 
+Commands
+
+- find source           --input query/filter    --config file              --output worklist.csv   (run query)
+- copy source target    --input items/worklist  --config file  --anonymize                         (delete anon if any)
+- move source target    --input items/worklist  --config file  --anonymize                         (copy + delete phi + delete anon if any)
+- remove source target  --input items/worklist  --config file                                      (delete)
+- mirror source target  --input query/filter    --config file  --anonymize                         (find + copy)
+- forward source target --input query/filter    --config file  --anonymize                         (find + move)
+
+`source/target` must be something that can create an interface (json, name in config)
+`items` must be something that can create a worklist { 'level': 'study', 'ids_in_source' : [1,2,3,4] }, (json, csv)
+`query` must be something that can filter items in the source into a worklist { 'level': 'subject', 'PatientName': 'ZNE*' } (json)
+`config` is optional for creating interfaces by name
+
+can also be a csv file or yaml
+
+
 ### Uploading Local Files
 
 ```bash

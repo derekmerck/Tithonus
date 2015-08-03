@@ -6,6 +6,7 @@ import os
 import io
 import requests
 
+
 class Interface(object):
 
     # -----------------------------
@@ -263,16 +264,17 @@ def interface_tests():
 
     logger = logging.getLogger(interface_tests.__name__)
 
-    # Instatiation
+    # Test Interface Instatiate
     interface = Interface(address="http://localhost:8042")
     assert interface.do_get('studies') == [u'163acdef-fe16e651-3f35f584-68c2103f-59cdd09d']
 
-    # Factory
+    # Test Interface Factory
     interface = Interface.factory('test', {'test': {'type': 'orthanc', 'address': 'http://localhost:8042'}})
     assert interface.do_get('studies') == [u'163acdef-fe16e651-3f35f584-68c2103f-59cdd09d']
 
 
 if __name__ == "__main__":
+
     logging.basicConfig(level=logging.DEBUG)
     interface_tests()
 

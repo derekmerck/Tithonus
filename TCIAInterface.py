@@ -105,17 +105,17 @@ def tcia_tests():
 
     logger = logging.getLogger(tcia_tests.__name__)
 
-    # Instantiate
+    # Test TCIA Instantiate
     source = TCIAInterface(address='https://services.cancerimagingarchive.net/services/v3/TCIA',
                            api_key=os.environ['TCIA_API_KEY'])
 
-    # Test download
+    # Test TCIA Download
     series = source.get_series_from_id('1.3.6.1.4.1.9328.50.4.15567')
     source.download_archive(series, 'tcia_tmp_archive')
     assert os.path.getsize('tcia_tmp_archive.zip') == 266582
     os.remove('tcia_tmp_archive.zip')
 
-    # Test copy syntax download
+    # Test TCIA Copy
     source.copy(series, source, 'tcia_tmp_archive')
     assert os.path.getsize('tcia_tmp_archive.zip') == 266582
     os.remove('tcia_tmp_archive.zip')

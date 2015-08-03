@@ -4,6 +4,7 @@ from HierarchicalData import Study, Subject
 import logging
 import os
 
+
 class OrthancInterface(Interface):
     # <https://docs.google.com/spreadsheets/d/1muKHMIb9Br-59wfaQbDeLzAfKYsoWfDSXSmyt6P4EM8/pubhtml?gid=525933398&single=true>
 
@@ -55,10 +56,15 @@ class OrthancInterface(Interface):
 
     def find(self, level, query, source=None):
         worklist = None
+        if isinstance(source, Interface):
+            source_name = source.name
+        else:
+            source_name = source
+
         data = {'Level': level, 'Query': query}
         if source:
             # Checking a different modality
-            resp_id = self.do_post('modalities', source.aetitle, 'query', data=data).get('ID')
+            resp_id = self.do_post('modalities', source_name, 'query', data=data).get('ID')
 
             answers = self.do_get('queries', resp_id, 'answers')
             for a in answers:
@@ -128,28 +134,42 @@ class OrthancInterface(Interface):
         study.study_id[self, 'original'] = study.study_id[self]
         study.study_id[self] = anon_study_id
 
+from nose.plugins.skip import SkipTest
 
 def orthanc_tests():
 
     logger = logging.getLogger(orthanc_tests.__name__)
 
-    # Instantiate
+    # Test Orthanc Instantiate
     source = OrthancInterface(address="http://localhost:8042")
     source.all_studies()
     logger.debug(source.studies)
     assert '163acdef-fe16e651-3f35f584-68c2103f-59cdd09d' in source.studies.keys()
 
-    # Test Download
-    source.download_archive(source.studies.values()[0], 'orthanc_tmp_archive')
-    assert os.path.getsize('orthanc_tmp_archive.zip') == 35884083
-    os.remove('orthanc_tmp_archive.zip')
+    # TODO: Test Orthanc Query -> Worklist
 
-    # TODO: Orthanc query DICOM node
-    # Query a different DICOM node
-    # r = source.query('study', {'PatientName': 'ZNE*'}, '3dlab-dev0')
-    # assert r['PatientID'] == u'ZA4VSDAUSJQA6'
+    # Test Orthanc Download
+    if False:
+        source.download_archive(source.studies.values()[0], 'orthanc_tmp_archive')
+        assert os.path.getsize('orthanc_tmp_archive.zip') == 35884083
+        os.remove('orthanc_tmp_archive.zip')
+
+    # TODO: Test Orthanc Upload
+
+    # TODO: Test Orthanc Delete
+
+    # TODO: Test Orthanc Anonymize
+
+    # Test Orthanc Query DICOM node -> Worklist
+    source = OrthancInterface(address="http://localhost:8043")
+    r = source.find('study', {'PatientName': 'ZNE*'}, '3dlab-dev0')
+    assert r['PatientID'] == u'ZA4VSDAUSJQA6'
+
+    # TODO: Test Orthanc Retreive from DICOM
 
 
 if __name__ == "__main__":
+
     logging.basicConfig(level=logging.DEBUG)
+
     orthanc_tests()

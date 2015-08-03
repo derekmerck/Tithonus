@@ -46,6 +46,7 @@ optional arguments:
   --delete_deidentified   Remove deidentified data from local after download
 ```
 
+```
 Commands
 
 - find source           --input query/filter    --config file              --output worklist.csv   (run query)
@@ -54,6 +55,7 @@ Commands
 - remove source target  --input items/worklist  --config file                                      (delete)
 - mirror source target  --input query/filter    --config file  --anonymize                         (find + copy)
 - forward source target --input query/filter    --config file  --anonymize                         (find + move)
+```
 
 `source/target` must be something that can create an interface (json, name in config)
 `items` must be something that can create a worklist { 'level': 'study', 'ids_in_source' : [1,2,3,4] }, (json, csv)
@@ -101,6 +103,14 @@ my_orthanc:
   user:    'user_name'
   pword:   'password'
 ```
+
+## Unit Tests
+
+- Presumes a DICOM server running at 4042 (Orthanc will do)
+- Presumes an Orthanc server running at 8043 (A second instance of Orthanc will do)
+- Presumes an XNAT server running at XXXX (Docker?)
+- Presumes a valid TCIA API key is available in the environment variable `TCIA_API_KEY`
+
 
 ## Resources
 

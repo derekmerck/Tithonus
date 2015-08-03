@@ -1,10 +1,11 @@
-# Polynyms extend `dict` to provide a set of ids for different contexts
+# Polynym extends `dict` to provide a set of ids for different contexts
 #
 # The orthonym is the name that the anonym is derived/hashed from
 # Any other context may assign its own name to this object
 
 import hashlib
 import logging
+
 
 class Polynym(dict):
 
@@ -27,8 +28,7 @@ class Polynym(dict):
         else:
             self.anonym_rule = Polynym.identity_rule
 
-        # An unqualified "id" is considered the orthonym (true name)
-        # and will be returned as the default id
+        # An unqualified "id" is considered the orthonym (true name) from which the anonym is derived
         self['orthonym'] = o
 
         if pseudonyms:
@@ -49,7 +49,6 @@ class Polynym(dict):
     @property
     def o(self):
         if self.get('orthonym'): return self.get('orthonym')
-#        elif self.get('anonym'): return self.get('anonym')
         else: return None
 
     @o.setter
@@ -66,32 +65,31 @@ class Polynym(dict):
         self['anonym'] = value
 
     def __cmp__(self, other):
-        # Polynyms are considered equivalent if the share _anonyms_ (same value and rule)
-        if self.a == other.a:
-            return True
-        else:
-            return False
+        # Polynyms are considered equivalent if they share _anonyms_ (same value and rule)
+        if self.a == other.a: return True
+        else: return False
+
 
 def polynym_tests():
 
     logger=logging.getLogger(polynym_tests.__name__)
 
-    # Instantiate
+    # Test Polynym Instantiate
     p = Polynym(o="Hi", anonym_rule=Polynym.md5_rule)
     assert p.o == "Hi"
     assert p.a.hexdigest() == 'c1a5298f939e87e8f962a5edfc206918'
 
-    # Test modify orthonym
+    # Test Polynym Modify Orthonym
     p.o = 'Hello'
     assert p.o == "Hello"
     assert p.a.hexdigest() == '8b1a9953c4611296a827abf8c47804d7'
 
-    # Test modify anonym
+    # Test Polynym Modify Anonym
     p.a = 'Bonjour'
     assert p.o == None
     assert p.a == 'Bonjour'
 
-    # Test add new key
+    # Test Polynym Add Key
     p['alias'] = 'Good day!'
     assert p['alias'] == 'Good day!'
 

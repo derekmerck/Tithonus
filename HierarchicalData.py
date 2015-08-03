@@ -114,10 +114,13 @@ def hdn_tests():
 
     logger = logging.getLogger(hdn_tests.__name__)
 
-    # Test instantiation & polynym
+    # Test HDN Instantiate
     item = Instance('Hi', anonym_rule=Polynym.md5_rule)
+
+    # Test HDN Polynym
     assert item.instance_id.o == 'Hi'
     assert item.instance_id.a.hexdigest() == 'c1a5298f939e87e8f962a5edfc206918'
+
 
 if __name__ == "__main__":
 

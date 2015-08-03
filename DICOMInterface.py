@@ -1,6 +1,7 @@
 from Interface import Interface
-from HierarchicalData import Series, Study, Subject
+# from HierarchicalData import Series, Study, Subject
 import logging
+
 
 class DICOMInterface(Interface):
 
@@ -14,21 +15,21 @@ class DICOMInterface(Interface):
         self.proxy.copy(item, self, self.proxy)
         self.proxy.download_data(item)
 
+
 def dicom_tests():
 
     logger = logging.getLogger(dicom_tests.__name__)
 
-    # Instantiate
+    # Test DICOM Instantiate
     from OrthancInterface import OrthancInterface
-    proxy = OrthancInterface(address='http://localhost:8043', aetitle='3dlab-dev1')
-    source = DICOMInterface(proxy=proxy, aetitle='3dlab-dev0')
+    proxy = OrthancInterface(address='http://localhost:8043', name='3dlab-dev1')
+    source = DICOMInterface(proxy=proxy, name='3dlab-dev0')
 
-    # Test query-by-proxy
+    # Test DICOM Query
     r = source.find('Patient', {'PatientName': 'ZNE*'})
     assert r['PatientID'] == 'ZA4VSDAUSJQA6'
 
-    # Test download
-    source.download_archive()
+    # TODO: Test DICOM Download
 
 
 if __name__ == "__main__":

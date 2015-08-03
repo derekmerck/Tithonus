@@ -88,8 +88,7 @@ def get_args():
         f = open(p.config, 'r')
         y = yaml.load(f)
         f.close()
-
-    logger.info('Read config: \n', y)
+        logger.info('Read config: \n', y)
 
     return p
 

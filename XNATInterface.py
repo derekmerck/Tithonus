@@ -2,6 +2,7 @@ from Interface import Interface
 from HierarchicalData import Series, Study, Subject
 import logging
 
+
 class XNATInterface(Interface):
 
     var_dict = {'study_type': 'xnat:mrSessionData/fields/field[name=study_type]/field'}
@@ -9,11 +10,11 @@ class XNATInterface(Interface):
     def __init__(self, **kwargs):
         super(XNATInterface, self).__init__(**kwargs)
 
+    # TODO: Build series, studies, and subjects correctly
     def series_from_id(self, series_id):
         return Series(series_id)
 
     def study_from_id(self, study_id):
-        # TODO: This isn't quite right -- need to build studies and subjects correctly
         return Study(study_id)
 
     def subject_from_id(self, subject_id):
@@ -38,7 +39,6 @@ class XNATInterface(Interface):
 
     def delete(self, worklist):
         # Unfortunately need the project for a delete, but perhaps easier with a 'root' proj
-        # TODO: Test xnat delete
 
         if not hasattr(worklist, '__iter__'):
             worklist = [worklist]
@@ -62,6 +62,16 @@ class XNATInterface(Interface):
 def xnat_tests():
 
     logger = logging.getLogger(xnat_tests.__name__)
+
+    # TODO: Test XNAT Instantiate
+
+    # TODO: Test XNAT Query
+
+    # TODO: Test XNAT Upload with corrent subject name, study name, etc.
+
+    # TODO: Test XNAT Download
+
+    # TODO: Test xnat Delete
 
     # Need to test:
     # 1. xnat-dev is up

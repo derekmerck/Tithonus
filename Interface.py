@@ -21,13 +21,14 @@ class Interface(object):
 
         # Accepts a config dict and returns an interface
         config = _config[name]
+        name = name.split('+')[0]
         if config['type'] == 'xnat':
             return XNATInterface(name=name, **config)
         elif config['type'] == 'orthanc':
             return OrthancInterface(name=name, **config)
-        elif config['type'] == 'orthanc':
+        elif config['type'] == 'dicom':
             proxy = Interface.factory(config['proxy'], _config)
-            return DICOMInterface(name=name, proxy=proxy, **config)
+            return DICOMInterface(name=name, proxy=proxy, **_config)
         else:
             logger = logging.getLogger(Interface.factory.__name__)
             logger.warn("Unknown repo type in config")
@@ -42,7 +43,8 @@ class Interface(object):
         self.address = kwargs.get('address')
         self.aetitle = kwargs.get('aetitle')
         self.auth = (kwargs.get('user'), kwargs.get('pword'))
-        self.name = kwargs.get('name')
+        self.name = kwargs.get('name', 'None')
+        self.name = self.name.split('+')[0]
         self.api_key = kwargs.get('api_key')
         self.proxy = kwargs.get('proxy')
         # Should be "available studies" plus a registry of all studies somewhere else
@@ -266,11 +268,11 @@ def interface_tests():
 
     # Test Interface Instatiate
     interface = Interface(address="http://localhost:8042")
-    assert interface.do_get('studies') == [u'163acdef-fe16e651-3f35f584-68c2103f-59cdd09d']
+    assert u'163acdef-fe16e651-3f35f584-68c2103f-59cdd09d' in interface.do_get('studies')
 
     # Test Interface Factory
     interface = Interface.factory('test', {'test': {'type': 'orthanc', 'address': 'http://localhost:8042'}})
-    assert interface.do_get('studies') == [u'163acdef-fe16e651-3f35f584-68c2103f-59cdd09d']
+    assert u'163acdef-fe16e651-3f35f584-68c2103f-59cdd09d' in interface.do_get('studies')
 
 
 if __name__ == "__main__":

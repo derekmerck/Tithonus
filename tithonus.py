@@ -23,6 +23,7 @@ import yaml
 from Interface import Interface
 
 logger = logging.getLogger('Tithonus Core')
+__version__ = '0.2.2'
 
 
 # Effectively reduces the problem to implementing a generic query, copy, and delete for each interface
@@ -57,6 +58,13 @@ def transfer(source, target, query, anonymize=False):
     move(source, target, worklist, anonymize)
 
 
+def read_yaml(fn):
+    with open(fn, 'r') as f:
+        y = yaml.load(f)
+        f.close()
+        return y
+
+
 def get_args():
     """Setup args and usage"""
     parser = argparse.ArgumentParser(description='Tithonus Core')
@@ -77,25 +85,69 @@ def get_args():
                         default='False')
     parser.add_argument('-c', '--config',
                         help='Image repository configuration file',
-                        default='repo.yaml')
+                        default='./repo.yaml')
     parser.add_argument('-V', '--version',
                         action='version',
                         version='%(prog)s (version ' + __version__ + ')')
 
     p = parser.parse_args()
 
+    p.config = 'repo.yaml'
+    logger.info('Reading %s' % p.config)
     if os.path.isfile(p.config):
-        f = open(p.config, 'r')
-        y = yaml.load(f)
-        f.close()
-        logger.info('Read config: \n', y)
+        p.y = read_yaml(p.config)
+        logger.info('Read config: \n', p.y)
 
     return p
+
+from nose.plugins.skip import SkipTest
+
+def test_dicom_download_production():
+
+    raise SkipTest
+
+    repos = read_yaml('repos.yaml')
+
+    source = Interface.factory('gepacs', repos)
+    target = Interface.factory('deathstar', repos)
+
+    w = source.find('study', {'AccessionNumber': 'R17613971'})
+    logger.debug(w)
+
+    # Harris^T*
+    w = source.find('study', {'AccessionNumber': 'R17218723'})
+    logger.debug(w)
+
+    # w = source.find('series', {'SeriesInstanceUID': '1.2.840.113654.2.55.4303894980888172655039251025765147023'})
+    # u = target.retreive(w[0], source)
+    # target.copy(u[0], target, 'nlst_tmp_archive')
+    # assert os.path.getsize('nlst_tmp_archive.zip') == 176070
+    # os.remove('nlst_tmp_archive.zip')
+
+
+def test_dicom_download_dev():
+
+    # Test DICOM Download (also in DICOMInterface)
+
+    repos = read_yaml('repos.yaml')
+
+    source = Interface.factory('3dlab-dev0+dcm', repos)
+    target = Interface.factory('3dlab-dev1', repos)
+
+    w = source.find('series', {'SeriesInstanceUID': '1.2.840.113654.2.55.4303894980888172655039251025765147023'})
+    u = target.retreive(w[0], source)
+    target.copy(u[0], target, 'nlst_tmp_archive')
+    assert os.path.getsize('nlst_tmp_archive.zip') == 176070
+    os.remove('nlst_tmp_archive.zip')
 
 
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
+    test_dicom_download_dev()
+
+    exit()
+
     args = get_args()
 
     input_data = """

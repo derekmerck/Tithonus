@@ -96,11 +96,10 @@ class TCIAInterface(Interface):
         # Only has interface for "series"
         item.data = self.do_get('query/getImage', params={'SeriesInstanceUID': item.series_id[self]})
 
-from nose.plugins.skip import SkipTest
-
 
 def tcia_tests():
     # The TCIA interface is very slow, so uncomment to skip this one
+    from nose.plugins.skip import SkipTest
     raise SkipTest
 
     logger = logging.getLogger(tcia_tests.__name__)
@@ -108,6 +107,10 @@ def tcia_tests():
     # Test TCIA Instantiate
     source = TCIAInterface(address='https://services.cancerimagingarchive.net/services/v3/TCIA',
                            api_key=os.environ['TCIA_API_KEY'])
+
+    # TODO: Test TCIA/NLST image download -- Perhaps API key doesn't work?
+    # series = source.get_series_from_id('1.2.840.113654.2.55.4303894980888172655039251025765147023')
+    # source.download_archive(series, 'nlst_tmp_archive')
 
     # Test TCIA Download
     series = source.get_series_from_id('1.3.6.1.4.1.9328.50.4.15567')

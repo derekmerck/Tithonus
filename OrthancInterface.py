@@ -1,6 +1,6 @@
 from Interface import Interface
 from DICOMInterface import DICOMInterface
-from HierarchicalData import Study, Subject
+from HierarchicalData import Series, Study, Subject
 import logging
 import os
 
@@ -13,9 +13,28 @@ class OrthancInterface(Interface):
 
     # Derived Class Implementations
     def series_from_id(self, series_id):
-        raise NotImplementedError
+        # Check if series is already in interface
+        if self.series.get(series_id):
+            return self.series.get(series_id)
 
-    def study_from_id(self, study_id):
+        # Assemble the study data
+        series_info = self.do_get('series', series_id)
+
+        self.logger.debug(series_info)
+
+
+        # Get study
+        study = self.study_from_id(series_info['ParentStudy'])
+
+        # Assemble the series data
+        series = Series(series_id=series_info['MainDicomTags'].get('SeriesInstanceUID', 'No ID'), parent=study)
+        series.series_id[self] = series_id
+
+        self.series[series_id] = series
+
+        return series
+
+    def study_from_id(self, study_id, subject=None):
         # Check if study is already in interface
         if self.studies.get(study_id):
             return self.studies.get(study_id)
@@ -27,7 +46,7 @@ class OrthancInterface(Interface):
         subject = self.subject_from_id(study_info['ParentPatient'])
 
         # Assemble the study data
-        study = Study(study_id=study_info['MainDicomTags']['AccessionNumber'], parent=subject)
+        study = Study(study_id=study_info['MainDicomTags'].get('AccessionNumber', 'No ID'), parent=subject)
         study.study_id[self] = study_id
 
         self.studies[study_id] = study
@@ -46,22 +65,33 @@ class OrthancInterface(Interface):
         # Assemble the subject data
         subject_info = self.do_get('patients', subject_id)
 
-        subject = Subject(subject_id=subject_info['MainDicomTags']['PatientID'],
-                          subject_name=subject_info['MainDicomTags']['PatientName'],
-                          subject_dob=subject_info['MainDicomTags']['PatientBirthDate'])
+        subject = Subject(subject_id=subject_info['MainDicomTags'].get('PatientID', 'No ID'),
+                          subject_name=subject_info['MainDicomTags'].get('PatientName', 'No Name'),
+                          subject_dob=subject_info['MainDicomTags'].get('PatientBirthDate', 'No Date'))
         subject.subject_id[self] = subject_id
 
         self.subjects[subject_id] = subject
         return subject
 
     def find(self, level, query, source=None):
-        worklist = None
         if isinstance(source, Interface):
             source_name = source.name
         else:
             source_name = source
 
-        data = {'Level': level, 'Query': query}
+        if level.lower() == 'subject' or level.lower() == 'patient':
+            level_name = 'Patient'
+        elif level.lower() == 'study':
+            level_name = 'Study'
+        elif level.lower() == 'series':
+            level_name = 'Series'
+        else:
+            self.logger.warn('No level associated with %s ' % level)
+            level_name = None
+
+        data = {'Level': level_name, 'Query': query}
+        worklist = []
+
         if source:
             # Checking a different modality
             resp_id = self.do_post('modalities', source_name, 'query', data=data).get('ID')
@@ -69,13 +99,37 @@ class OrthancInterface(Interface):
             answers = self.do_get('queries', resp_id, 'answers')
             for a in answers:
                 # Add to available studies, flag as present on source
-                worklist = self.do_get('queries', resp_id, 'answers', a, 'content?simplify')
-                # TODO: Process worklist id's to produce a list of studies...
-                # Each remote study must be tagged with id[source]=(query_id, answer_id)
+                item_data = self.do_get('queries', resp_id, 'answers', a, 'content?simplify')
+                item = None
+                if level == 'subject':
+                    item = Subject(item_data['PatientID'])
+                    item.subject_id[source] = (resp_id, a)
+                if level == 'study':
+                    subject = Subject(item_data['PatientID'])
+                    subject.subject_name.o = item_data['PatientName']
+                    item = Study(item_data['AccessionNumber'])
+                    item.study_id[source] = (resp_id, a)
+                    item.subject = subject
+                elif level == 'series':
+                    # subject = Subject(item_data['PatientID'])
+                    # subject.subject_name.o = item_data['PatientName']
+                    # study = Study(item_data['AccessionNumber'])
+                    # study.subject = subject
+                    item = Series(item_data['SeriesInstanceUID'])
+                    item.series_id[source] = (resp_id, a)
+                    # item.study = study
+                worklist.append(item)
         else:
             # Add to available studies
-            worklist = self.do_post('tools/find', data=data)
-            # TODO: Process worklist id's to produce a list of studies...
+            item_data = self.do_post('tools/find', data=data)
+            self.logger.debug(item_data)
+            if level == 'study':
+                item = self.study_from_id(item_data[0])
+                item.study_id[self] = item_data[0]
+            elif level == 'series':
+                item = self.series_from_id(item_data[0])
+                item.series_id[self] = item_data[0]
+            worklist.append(item)
 
         return worklist
 
@@ -86,12 +140,29 @@ class OrthancInterface(Interface):
         # Retreiving from DICOM modality or Orthanc peer
         if isinstance(source, DICOMInterface):
             # Copy from modality
-            self.do_post('queries', item.study_id.get('query_id'), 'answers', item.study_id.get('answer_id'), data=self.aetitle)
+            if isinstance(item, Study):
+                self.do_post('queries', item.study_id.get(source)[0],
+                             'answers', item.study_id.get(source)[1],
+                             'retrieve', data=self.aetitle)
+            elif isinstance(item, Series):
+                self.do_post('queries', item.series_id.get(source)[0],
+                             'answers', item.series_id.get(source)[1],
+                             'retrieve', data=self.aetitle)
+                self.logger.debug('ortho id %s' % item.series_id.o)
+                return self.find('series', {'SeriesInstanceUID': item.series_id.o})
+            else:
+                self.logger.warn('Unknown item type')
         else:
             raise NotImplementedError
 
-    def download_data(self, study):
-        study.data = self.do_get('studies', study.study_id[self], 'archive')
+    def download_data(self, item):
+
+        if isinstance(item, Study):
+            item.data = self.do_get('studies', item.study_id.get(self), 'archive')
+        elif isinstance(item, Series):
+            item.data = self.do_get('series', item.series_id.get(self), 'archive')
+        else:
+            self.logger.warn('Unknown item type')
 
     def upload_data(self, study):
         # If there is study.data, send it.
@@ -134,9 +205,10 @@ class OrthancInterface(Interface):
         study.study_id[self, 'original'] = study.study_id[self]
         study.study_id[self] = anon_study_id
 
-from nose.plugins.skip import SkipTest
 
 def orthanc_tests():
+
+    #from nose.plugins.skip import SkipTest
 
     logger = logging.getLogger(orthanc_tests.__name__)
 
@@ -162,8 +234,8 @@ def orthanc_tests():
 
     # Test Orthanc Query DICOM node -> Worklist
     source = OrthancInterface(address="http://localhost:8043")
-    r = source.find('study', {'PatientName': 'ZNE*'}, '3dlab-dev0')
-    assert r['PatientID'] == u'ZA4VSDAUSJQA6'
+    r = source.find('study', {'PatientName': 'ZNE*'}, '3dlab-dev0')[0]
+    assert r.subject.subject_id.o == u'ZA4VSDAUSJQA6'
 
     # TODO: Test Orthanc Retreive from DICOM
 
@@ -171,5 +243,4 @@ def orthanc_tests():
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
-
     orthanc_tests()

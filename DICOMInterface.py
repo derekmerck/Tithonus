@@ -1,6 +1,6 @@
 from Interface import Interface
-# from HierarchicalData import Series, Study, Subject
 import logging
+import os
 
 
 class DICOMInterface(Interface):
@@ -23,14 +23,24 @@ def dicom_tests():
     # Test DICOM Instantiate
     from OrthancInterface import OrthancInterface
     proxy = OrthancInterface(address='http://localhost:8043', name='3dlab-dev1')
-    source = DICOMInterface(proxy=proxy, name='3dlab-dev0')
+    source = DICOMInterface(proxy=proxy, name='3dlab-dev0+dcm')
 
-    # Test DICOM Query
-    r = source.find('Patient', {'PatientName': 'ZNE*'})
-    assert r['PatientID'] == 'ZA4VSDAUSJQA6'
+    # Test DICOM Subject Query
+    r = source.find('subject', {'PatientName': 'ZNE*'})
+    assert r[0].subject_id.o == 'ZA4VSDAUSJQA6'
 
-    # TODO: Test DICOM Download
+    # Test DICOM Q/R/DL
+    from tithonus import read_yaml
+    repos = read_yaml('repos.yaml')
 
+    source = Interface.factory('3dlab-dev0+dcm', repos)
+    target = Interface.factory('3dlab-dev1', repos)
+
+    w = source.find('series', {'SeriesInstanceUID': '1.2.840.113654.2.55.4303894980888172655039251025765147023'})[0]
+    u = target.retreive(w, source)[0]
+    target.copy(u, target, 'nlst_tmp_archive')
+    assert os.path.getsize('nlst_tmp_archive.zip') == 176070
+    os.remove('nlst_tmp_archive.zip')
 
 if __name__ == "__main__":
 

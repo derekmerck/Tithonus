@@ -106,15 +106,16 @@ my_orthanc:
 
 ## Unit Tests
 
-- Presumes a DICOM server running at 4042 (Orthanc will do)
-- Presumes an Orthanc server running at 8043 (A second instance of Orthanc will do)
-- Presumes an XNAT server running at XXXX (Docker?)
-- Presumes a valid TCIA API key is available in the environment variable `TCIA_API_KEY`
+- Presumes a DICOM server running at <dcm://localhost:4042> (Orthanc will do)
+- Presumes an Orthanc server running at <http://localhost:8043> (A second instance of Orthanc will do)
+- Presumes an XNAT server running at <http://localhost:8080/xnat> (Docker?)
+- Presumes a valid [TCIA][] API key is available in the environment variable `TCIA_API_KEY`
 
+[TCIA]: http://www.cancerimagingarchive.com
 
 ## Resources
 
-- Orthanc [REST 0.9 API](https://docs.google.com/spreadsheets/d/1muKHMIb9Br-59wfaQbDeLzAfKYsoWfDSXSmyt6P4EM8/pubhtml?gid=525933398&single=true)
+- Orthanc [REST 0.9.1 API](https://docs.google.com/spreadsheets/d/1muKHMIb9Br-59wfaQbDeLzAfKYsoWfDSXSmyt6P4EM8/pubhtml?gid=525933398&single=true)
 - XNAT [zip upload](https://wiki.xnat.org/display/XKB/Uploading+Zip+Archives+to+XNAT)
 
 ## License

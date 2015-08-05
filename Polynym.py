@@ -86,7 +86,7 @@ def polynym_tests():
 
     # Test Polynym Modify Anonym
     p.a = 'Bonjour'
-    assert p.o == None
+    assert p.o is None
     assert p.a == 'Bonjour'
 
     # Test Polynym Add Key

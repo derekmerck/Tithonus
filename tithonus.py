@@ -22,8 +22,15 @@ import os
 import yaml
 from Interface import Interface
 
-logger = logging.getLogger('Tithonus Core')
-__version__ = '0.2.2'
+__package__ = "Tithonus"
+__description__ = "Gatekeeper script for mirroring deidentified and reformatted medical images"
+__url__ = "https://github.com/derekmerck/Tithonus"
+__author__ = 'Derek Merck'
+__email__ = "derek_merck@brown.edu"
+__license__ = "MIT"
+__version_info__ = ('0', '2', '2')
+__version__ = '.'.join(__version_info__)
+logger = logging.getLogger('Tithonus CLI')
 
 
 # Effectively reduces the problem to implementing a generic query, copy, and delete for each interface
@@ -100,29 +107,33 @@ def get_args():
 
     return p
 
-from nose.plugins.skip import SkipTest
+#from nose.plugins.skip import SkipTest
 
 def test_dicom_download_production():
+    # Example of how to download a worklist of series.
+    #
+    # Format worklist like this:
+    #
+    # SeriesInstanceUIDs:
+    #   - x.y.zzz.wwwwww.u.ttt.s.aaaaaaaaaaa....
+    #   - x.y.zzz.wwwwww.u.ttt.s.aaaaaaaaaab....
+    #
+    # Can search for "Series/Study/PatientInstanceUID", "AccessionNumber", "PatientName" or "PatientID"
 
-    raise SkipTest
+    #raise SkipTest
 
     repos = read_yaml('repos.yaml')
 
     source = Interface.factory('gepacs', repos)
     target = Interface.factory('deathstar', repos)
 
-    w = source.find('study', {'AccessionNumber': 'R17613971'})
-    logger.debug(w)
+    worklist_config = read_yaml('series_worklist.yaml')['SeriesInstanceUIDs']
 
-    # Harris^T*
-    w = source.find('study', {'AccessionNumber': 'R17218723'})
-    logger.debug(w)
+    for entry in worklist_config:
+        w = source.find('series', {'SeriesInstanceUID': entry})[0]
+        u = target.retreive(w, source)[0]
+        target.copy(u, target, '/Users/derek/Desktop/%s_archive' % u.study.subject.subject_id.o)
 
-    # w = source.find('series', {'SeriesInstanceUID': '1.2.840.113654.2.55.4303894980888172655039251025765147023'})
-    # u = target.retreive(w[0], source)
-    # target.copy(u[0], target, 'nlst_tmp_archive')
-    # assert os.path.getsize('nlst_tmp_archive.zip') == 176070
-    # os.remove('nlst_tmp_archive.zip')
 
 
 def test_dicom_download_dev():
@@ -144,8 +155,8 @@ def test_dicom_download_dev():
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
-    test_dicom_download_dev()
 
+    test_dicom_download_production()
     exit()
 
     args = get_args()

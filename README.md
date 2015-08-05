@@ -57,12 +57,10 @@ Commands
 - forward source target --input query/filter    --config file  --anonymize                         (find + move)
 ```
 
-`source/target` must be something that can create an interface (json, name in config)
-`items` must be something that can create a worklist { 'level': 'study', 'ids_in_source' : [1,2,3,4] }, (json, csv)
-`query` must be something that can filter items in the source into a worklist { 'level': 'subject', 'PatientName': 'ZNE*' } (json)
-`config` is optional for creating interfaces by name
-
-can also be a csv file or yaml
+- `source/target` must be something that can create an interface (json, name in config)
+- `items` must be something that can create a worklist { 'level': 'study', 'ids_in_source' : [1,2,3,4] }, (json, csv)
+- `query` must be something that can filter items in the source into a worklist { 'level': 'subject', 'PatientName': 'ZNE*' } (json)
+- `config` is optional for creating interfaces by name
 
 
 ### Uploading Local Files
@@ -102,6 +100,10 @@ my_orthanc:
   address: 'http://localhost:8042'
   user:    'user_name'
   pword:   'password'
+my_dicom:
+  type:    'dicom'
+  aetitle: 'MYDICOM'
+  proxy:   'my_orthanc'
 ```
 
 ## Unit Tests

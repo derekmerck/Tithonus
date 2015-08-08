@@ -52,9 +52,10 @@ class Study(HierarchicalDataNode):
     @property
     def accession(self):
         return self.study_id.get('accession')
+
     @accession.setter
     def accession(self, value):
-        self.study_id['accession']=value
+        self.study_id['accession'] = value
 
     def __str__(self):
         return "{0}/{1}".format(self.study_id.o, self.study_id.a)

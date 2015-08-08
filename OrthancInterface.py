@@ -1,3 +1,6 @@
+
+# <https://docs.google.com/spreadsheets/d/1muKHMIb9Br-59wfaQbDeLzAfKYsoWfDSXSmyt6P4EM8/pubhtml?gid=525933398&single=true>
+
 from Interface import Interface
 from DICOMInterface import DICOMInterface
 from HierarchicalData import Series, Study, Subject
@@ -6,7 +9,6 @@ import os
 
 
 class OrthancInterface(Interface):
-    # <https://docs.google.com/spreadsheets/d/1muKHMIb9Br-59wfaQbDeLzAfKYsoWfDSXSmyt6P4EM8/pubhtml?gid=525933398&single=true>
 
     def __init__(self, **kwargs):
         super(OrthancInterface, self).__init__(**kwargs)
@@ -106,7 +108,7 @@ class OrthancInterface(Interface):
                     item.subject_id[source] = (resp_id, a)
                 if level == 'study':
                     subject = Subject(item_data['PatientID'])
-                    subject.subject_name.o = item_data['PatientName']
+                    subject.subject_name.o = item_data.get('PatientName')
                     item = Study(item_data['AccessionNumber'])
                     item.study_id[source] = (resp_id, a)
                     item.subject = subject
@@ -183,18 +185,18 @@ class OrthancInterface(Interface):
 
         anon_script = {
             "Replace": {
-                "0010-0010": study.subject.subject_name.a, # PatientsName
-                "0010-0020": study.subject.subject_id.a,   # PatientID
-                "0010-0030": study.subject.subject_dob.a,  # PatientsBirthDate
-                "0008-0050": study.study_id.a,             # AccessionNumber
-                "0012-0062": "YES",        # Deidentified
-                "0010-0021": rule_author,  # Issuer of Patient ID
+                "0010-0010": study.subject.subject_name.a,  # PatientsName
+                "0010-0020": study.subject.subject_id.a,    # PatientID
+                "0010-0030": study.subject.subject_dob.a,   # PatientsBirthDate
+                "0008-0050": study.study_id.a,              # AccessionNumber
+                "0012-0062": "YES",                         # Deidentified
+                "0010-0021": rule_author,                   # Issuer of Patient ID
                 "0012-0063": "{0} {1} {2}".format(rule_author, rule_name, rule_version) # Deidentification method
                 },
             "Keep": [
-                "0008-0080",                # InstitutionName
-                "0010-0040",                # PatientsSex
-                "0010-1010",                # PatientsAge
+                "0008-0080",                                # InstitutionName
+                "0010-0040",                                # PatientsSex
+                "0010-1010",                                # PatientsAge
                 "StudyDescription",
                 "SeriesDescription"],
             "KeepPrivateTags": None

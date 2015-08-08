@@ -1,10 +1,8 @@
-import json
-from posixpath import join as urljoin
 import logging
 import zipfile
 import os
 import io
-import requests
+from RequestsSessionWrapper import SessionWrapper, JuniperSessionWrapper
 
 
 class Interface(object):
@@ -18,6 +16,7 @@ class Interface(object):
         from OrthancInterface import OrthancInterface
         from XNATInterface import XNATInterface
         from DICOMInterface import DICOMInterface
+        from MontageInterface import MontageInterface
 
         # Accepts a config dict and returns an interface
         config = _config[name]
@@ -29,9 +28,11 @@ class Interface(object):
         elif config['type'] == 'dicom':
             proxy = Interface.factory(config['proxy'], _config)
             return DICOMInterface(name=name, proxy=proxy, **_config)
+        elif config['type'] == 'montage':
+            return MontageInterface(name=name, **config)
         else:
             logger = logging.getLogger(Interface.factory.__name__)
-            logger.warn("Unknown repo type in config")
+            logger.warn("Unknown repo type '%s' in config", name)
             pass
 
     # -----------------------------
@@ -47,6 +48,14 @@ class Interface(object):
         self.name = self.name.split('+')[0]
         self.api_key = kwargs.get('api_key')
         self.proxy = kwargs.get('proxy')
+        self.jproxy = kwargs.get('jproxy')
+
+        # Create a session/juniper session
+        if self.jproxy is None:
+            self.session = SessionWrapper(**kwargs)
+        else:
+            self.session = JuniperSessionWrapper(**kwargs)
+
         # Should be "available studies" plus a registry of all studies somewhere else
         self.series = {}
         self.studies = {}
@@ -63,7 +72,6 @@ class Interface(object):
     # - delete
     # -----------------------------
 
-    # TODO: Rename to find ...
     def find(self, level, question, source=None):
         # Level is a HDN type: subject, studies, or series
         # Question is a dictionary of property names and values
@@ -177,68 +185,19 @@ class Interface(object):
     # -----------------------------
 
     def do_return(self, r):
-        # Return dict if possible, but content otherwise (for image data)
-        #self.logger.info(r.headers.get('content-type'))
-        if r.status_code is not 200:
-            self.logger.warn('REST interface returned error %s', r.status_code)
-            ret = r.content
-            msg = ret
-        elif r.headers.get('content-type') == 'application/json':
-            try:
-                ret = r.json()
-                if len(ret) < 50:
-                    msg = ret
-                else:
-                    msg = 'a long json declaration'
-            except ValueError, e:
-                ret = r.content
-                msg = 'bad json declaration'
-        else:
-            ret = r.content
-            msg = 'Non-json data'
-        self.logger.debug('Returning value for %s', msg)
-        return ret
+        return self.session.do_return(r)
 
     def do_delete(self, *url, **kwargs):
-        params = kwargs.get('params')
-        headers = kwargs.get('headers')
-        url = urljoin(self.address, *url)
-        self.logger.debug('Deleting url: %s' % url)
-        r = requests.delete(url, params=params, headers=headers, auth=self.auth)
-        return self.do_return(r)
+        return self.session.do_delete(*url, **kwargs)
 
     def do_get(self, *url, **kwargs):
-        params = kwargs.get('params')
-        headers = kwargs.get('headers')
-        url = urljoin(self.address, *url)
-        self.logger.debug('Getting url: %s' % url)
-        r = requests.get(url, params=params, headers=headers, auth=self.auth)
-        return self.do_return(r)
+        return self.session.do_get(*url, **kwargs)
 
     def do_put(self, *url, **kwargs):
-        params = kwargs.get('params')
-        headers = kwargs.get('headers')
-        data = kwargs.get('data')
-        if type(data) is dict:
-            headers = {'content-type': 'application/json'}
-            data = json.dumps(data)
-        url = urljoin(self.address, *url)
-        self.logger.debug('Putting url: %s' % url)
-        r = requests.put(url, params=params, headers=headers, auth=self.auth, data=data)
-        return self.do_return(r)
+        return self.session.do_put(*url, **kwargs)
 
     def do_post(self, *url, **kwargs):
-        params = kwargs.get('params')
-        headers = kwargs.get('headers')
-        data = kwargs.get('data')
-        if type(data) is dict:
-            headers = {'content-type': 'application/json'}
-            data = json.dumps(data)
-            self.logger.info(data)
-        url = urljoin(self.address, *url)
-        self.logger.debug('Posting to url: %s' % url)
-        r = requests.post(url, params=params, headers=headers, auth=self.auth, data=data)
-        return self.do_return(r)
+        return self.session.do_post(*url, **kwargs)
 
     def zipdir(top, fno=None):
 
@@ -267,11 +226,11 @@ def interface_tests():
     logger = logging.getLogger(interface_tests.__name__)
 
     # Test Interface Instatiate
-    interface = Interface(address="http://localhost:8042")
+    interface = Interface(address="http://localhost:8043")
     assert u'163acdef-fe16e651-3f35f584-68c2103f-59cdd09d' in interface.do_get('studies')
 
     # Test Interface Factory
-    interface = Interface.factory('test', {'test': {'type': 'orthanc', 'address': 'http://localhost:8042'}})
+    interface = Interface.factory('test', {'test': {'type': 'orthanc', 'address': 'http://localhost:8043'}})
     assert u'163acdef-fe16e651-3f35f584-68c2103f-59cdd09d' in interface.do_get('studies')
 
 

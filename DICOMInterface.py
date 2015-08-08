@@ -30,7 +30,7 @@ def dicom_tests():
     assert r[0].subject_id.o == 'ZA4VSDAUSJQA6'
 
     # Test DICOM Q/R/DL
-    from tithonus import read_yaml
+    from Tithonus import read_yaml
     repos = read_yaml('repos.yaml')
 
     source = Interface.factory('3dlab-dev0+dcm', repos)

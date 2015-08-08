@@ -20,7 +20,6 @@ import logging
 import argparse
 import os
 import yaml
-from Interface import Interface
 
 __package__ = "Tithonus"
 __description__ = "Gatekeeper script for mirroring deidentified and reformatted medical images"
@@ -31,6 +30,8 @@ __license__ = "MIT"
 __version_info__ = ('0', '2', '2')
 __version__ = '.'.join(__version_info__)
 logger = logging.getLogger('Tithonus CLI')
+
+from Interface import Interface
 
 
 # Effectively reduces the problem to implementing a generic query, copy, and delete for each interface
@@ -107,7 +108,7 @@ def get_args():
 
     return p
 
-#from nose.plugins.skip import SkipTest
+from nose.plugins.skip import SkipTest
 
 def test_dicom_download_production():
     # Example of how to download a worklist of series.
@@ -120,19 +121,20 @@ def test_dicom_download_production():
     #
     # Can search for "Series/Study/PatientInstanceUID", "AccessionNumber", "PatientName" or "PatientID"
 
-    #raise SkipTest
+    raise SkipTest
 
     repos = read_yaml('repos.yaml')
 
     source = Interface.factory('gepacs', repos)
     target = Interface.factory('deathstar', repos)
 
-    worklist_config = read_yaml('series_worklist.yaml')['SeriesInstanceUIDs']
-
-    for entry in worklist_config:
-        w = source.find('series', {'SeriesInstanceUID': entry})[0]
-        u = target.retreive(w, source)[0]
-        target.copy(u, target, '/Users/derek/Desktop/%s_archive' % u.study.subject.subject_id.o)
+    # worklist_config = read_yaml('series_worklist.yaml')['SeriesInstanceUIDs']
+    #
+    # for entry in worklist_config:
+#    w = source.find('study', {'AccessionNumber': 'R13851441'})[0]
+    u = target.find('study', {'AccessionNumber': 'R13851441'})[0]
+    #u = target.retreive(w, source)[0]
+    target.copy(u, target, '/Users/derek/Desktop/%s_archive' % u.study_id.o)
 
 
 
@@ -155,6 +157,8 @@ def test_dicom_download_dev():
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
+    test_connect()
+    exit()
 
     test_dicom_download_production()
     exit()
@@ -179,13 +183,13 @@ if __name__ == "__main__":
 
     source = None
     if args.get('source'):
-        source_config = p.config[args.get('source')]
+        source_config = args.config[args.get('source')]
         source_config['name'] = args.get('source')
         source = Interface.factory(source_config)
 
     target = None
     if args.get('target'):
-        target_config = p.config[args.get('target')]
+        target_config = args.config[args.get('target')]
         target_config['name'] = args.get('target')
         target = Interface.factory(target_config)
 

@@ -24,7 +24,7 @@ class MontageInterface(Interface):
 def test_montage():
 
     # Test DICOM Q/R/DL
-    from Tithonus import read_yaml
+    from tithonus import read_yaml
     repos = read_yaml('repos.yaml')
     source = Interface.factory('montage', repos)
 

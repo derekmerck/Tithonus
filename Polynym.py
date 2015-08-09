@@ -1,10 +1,12 @@
 # Polynym extends `dict` to provide a set of ids for different contexts
+# Alternate id's can be automatically generated with context_map_rules
 #
-# The orthonym is the name that the anonym is derived/hashed from
-# Any other context may assign its own name to this object
+# Dicom hierarchical node types are derived with pseudoanonymization rules
+# and parent/child relationships
 
 import hashlib
 import logging
+import GID_Mint
 
 
 class Polynym(dict):
@@ -15,87 +17,226 @@ class Polynym(dict):
 
     @staticmethod
     def md5_rule(s):
-        return hashlib.md5(s)
+        return hashlib.md5(s).hexdigest()
 
-    def __init__(self, o=None, pseudonyms=None, anonym_rule=None):
+    def __init__(self, **kwargs):
+        super(Polynym, self).__init__(**kwargs)
+        self.context_maps = {}
+        # if self['anonymized']:
+        #     # Set all mappings to identity
+        #     self['override_rule'] = Polynym2.identity_rule
 
-        super(Polynym, self).__init__()
-        # Contexts are keys for the ids dictionary
+    @property
+    def anonymized(self):
+        return self.get('anonymized', False)
 
-        # Whenever the orthonym is set, it will call this rule and set the 'anonym' propery
-        if anonym_rule:
-            self.anonym_rule = anonym_rule
+    def add_map(self, source, target, rule):
+        if self.context_maps.get(source):
+            self.context_maps[source].update({target: rule})
         else:
-            self.anonym_rule = Polynym.identity_rule
+            self.context_maps[source] = {target: rule}
+        self.apply_rules()
 
-        # An unqualified "id" is considered the orthonym (true name) from which the anonym is derived
-        self['orthonym'] = o
+    # def set_all_rules_to_identity(self):
+    #     # If this node is already anonymized, set all rules to identity mappings
+    #     for source, mapping in self.context_maps.iteritems():
+    #         for target, rule in mapping.iteritems():
+    #             self.context_maps[source][target] = Polynym2.identity_rule()
+    #     self.apply_rules()
 
-        if pseudonyms:
-            self.update(pseudonyms)
+    def apply_rules(self):
+        for source, mapping in self.context_maps.iteritems():
+            for target, rule in mapping.iteritems():
+                value = self.get(source)
+                #logging.debug('%s %s %s %s' % (source, target, rule, value))
+                # rule = self.get('override_rule', rule)
+                if value:
+                    dict.__setitem__(self, target, rule(value))
 
     def __setitem__(self, key, value):
-        if key == 'orthonym':
-            anonym = self.anonym_rule(value)
-            dict.__setitem__(self, 'anonym', anonym)
-            dict.__setitem__(self, 'orthonym', value)
-        elif key == 'anonym':
-            if self.anonym_rule(self.get('orthonym')) != value:
-                dict.__setitem__(self, 'orthonym', None)
-            dict.__setitem__(self, 'anonym', value)
-        else:
-            dict.__setitem__(self, key, value)
-
-    @property
-    def o(self):
-        if self.get('orthonym'): return self.get('orthonym')
-        else: return None
-
-    @o.setter
-    def o(self, value):
-        self['orthonym'] = value
-
-    @property
-    def a(self):
-        if self.get('anonym'): return self.get('anonym')
-        else: return None
-
-    @a.setter
-    def a(self, value):
-        self['anonym'] = value
+        # for target, rule in self.context_maps.get(key, {}).iteritems():
+        #     dict.__setitem__(self, target, rule(value))
+        #     # Single layer of recursion
+        #     for starget, srule in self.context_maps.get(target, {}).iteritems():
+        #         dict.__setitem__(self, starget, srule(value))
+        dict.__setitem__(self, key, value)
+        self.apply_rules()
 
     def __cmp__(self, other):
-        # Polynyms are considered equivalent if they share _anonyms_ (same value and rule)
-        if self.a == other.a: return True
+        # Polynyms are considered equivalent if they share _hashed_id_ (same value and rule)
+        if self.get('hashed_id') == other.get('hashed_id'): return True
         else: return False
 
 
-def polynym_tests():
+class HierarchicalPolynym(Polynym):
 
-    logger=logging.getLogger(polynym_tests.__name__)
+    def __init__(self, **kwargs):
+        super(HierarchicalPolynym, self).__init__(**kwargs)
+        self.parent = kwargs.get('parent')
+        self.children = kwargs.get('children', [])
 
-    # Test Polynym Instantiate
-    p = Polynym(o="Hi", anonym_rule=Polynym.md5_rule)
-    assert p.o == "Hi"
-    assert p.a.hexdigest() == 'c1a5298f939e87e8f962a5edfc206918'
 
-    # Test Polynym Modify Orthonym
-    p.o = 'Hello'
-    assert p.o == "Hello"
-    assert p.a.hexdigest() == '8b1a9953c4611296a827abf8c47804d7'
+class DicomSeries(HierarchicalPolynym):
 
-    # Test Polynym Modify Anonym
-    p.a = 'Bonjour'
-    assert p.o is None
-    assert p.a == 'Bonjour'
+    relevant_keys = ['series_id', 'anonymized']
 
-    # Test Polynym Add Key
-    p['alias'] = 'Good day!'
-    assert p['alias'] == 'Good day!'
+    def __init__(self, **kwargs):
+        filtered_kwargs = {k:v for (k,v) in kwargs.iteritems() if k in self.relevant_keys}
+        super(DicomSeries, self).__init__(**filtered_kwargs)
+        self.parent = kwargs.get('study', DicomStudy(**kwargs))
+        self.study.children.append(self)
+
+    @property
+    def series_id(self):
+        return self.get('series_id')
+
+    @property
+    def study(self):
+        return self.parent
+
+    @study.setter
+    def study(self, value):
+        self.parent = value
+
+    @property
+    def subject(self):
+        return self.study.subject
+
+    @subject.setter
+    def subject(self, value):
+        self.parent.parent = value
+
+
+class DicomStudy(HierarchicalPolynym):
+
+    relevant_keys = ['study_id', 'accession_number', 'anonymized']
+
+    def hashed_accession_rule(self, _id):
+        return GID_Mint.get_gid({'accession_number': _id})
+        # return Polynym2.md5_rule(id)
+
+    def __init__(self, **kwargs):
+        filtered_kwargs = {k:v for (k,v) in kwargs.iteritems() if k in self.relevant_keys}
+        super(DicomStudy, self).__init__(**filtered_kwargs)
+
+        if self.anonymized:
+            self.add_map('accession_number', 'hashed_id', Polynym.identity_rule)
+        else:
+            self.add_map('accession_number', 'hashed_id', self.hashed_accession_rule)
+        self.apply_rules()
+        self.parent = kwargs.get('subject', DicomSubject(**kwargs))
+        self.subject.children.append(self)
+
+    @property
+    def study_id(self):
+        return self.get('study_id')
+
+    @property
+    def subject(self):
+        return self.parent
+
+    @subject.setter
+    def subject(self, value):
+        self.parent = value
+
+    @property
+    def hashed_id(self):
+        return self.get('hashed_id')
+
+
+class DicomSubject(HierarchicalPolynym):
+
+    relevant_keys = ['subject_id', 'subject_name', 'dob', 'anonymized']
+
+    def hashed_subject_id_rule(self, subject_name):
+        return GID_Mint.get_gid({'pname': subject_name})
+
+    def pseudo_subject_name_rule(self, dummy):
+        # Requires hashed_id is already set
+        if not self.get('hashed_id'):
+            self['hashed_id'] = self.hashed_subject_id_rule(self['subject_name'])
+        return GID_Mint.get_pname_for_gid({'gid': self['hashed_id']})
+
+    def pseudo_subject_dob_rule(self, dob):
+        # Requires hashed_id is already set
+        if not self.get('hashed_id'):
+            self['hashed_id'] = self.hashed_subject_id_rule(self['subject_name'])
+        return GID_Mint.get_pdob_for_dob_and_gid({'gid': self['hashed_id'], 'dob': dob})
+
+    def __init__(self, **kwargs):
+        filtered_kwargs = {k:v for (k,v) in kwargs.iteritems() if k in self.relevant_keys}
+        super(DicomSubject, self).__init__(**filtered_kwargs)
+
+        if self.anonymized:
+            self.add_map('subject_name', 'pseudonym',  Polynym.identity_rule)
+            self.add_map('subject_id',   'hashed_id',  Polynym.identity_rule)
+            self.add_map('dob',          'pseudo_dob', Polynym.identity_rule)
+        else:
+            self.add_map('subject_name', 'hashed_id',  self.hashed_subject_id_rule)
+            self.add_map('hashed_id',    'pseudonym',  self.pseudo_subject_name_rule)
+            self.add_map('dob',          'pseudo_dob', self.pseudo_subject_dob_rule)
+        self.apply_rules()
+
+    @property
+    def subject_id(self):
+        return self.get('subject_id')
+
+    @property
+    def pseudonym(self):
+        return self.get('pseudonym')
+
+
+def test_polynym2():
+
+    logger = logging.getLogger('Polynym2')
+
+    p = Polynym()
+    p.add_map(('test', 0),    ('test1', 1), Polynym.md5_rule)
+    p.add_map(('test', 0),    ('test2', 2), Polynym.md5_rule)
+    p.add_map( 'test_single',  'test_copy', Polynym.identity_rule)
+
+    p['test', 0]     = 'TEST_VALUE1'
+    p['test_single'] = 'TEST_VALUE2'
+
+    assert(p['test1', 1] == 'd0ddaea916cb15a6f0a675a1d2e53029')
+    assert(p['test2', 2] == 'd0ddaea916cb15a6f0a675a1d2e53029')
+    assert(p['test_copy'] == 'TEST_VALUE2')
+
+    logger.info(p)
+
+
+def test_dicom_nodes():
+
+    logger = logging.getLogger('DICOM/Polynym')
+
+    t = DicomSubject(subject_name='Merck PhD^Derek', dob='19710101')
+    # logger.debug(t)
+    assert(t.pseudonym == 'Fortinbras^Quickly^S^King^IV')
+
+    u = DicomStudy(accession_number='12345678', subject_name='Merck PhD^Derek', dob='19710101')
+    # logger.debug(u)
+    # logger.debug(u.subject)
+    assert(u.hashed_id == '554XZAIY6AW7W')
+    assert(u.subject.pseudonym == 'Fortinbras^Quickly^S^King^IV')
+
+    v = DicomSeries(series_id='XYZ', accession_number='12345678', subject_name='Merck PhD^Derek', dob='19710101')
+
+    logger.debug(v)
+    logger.debug(v.study)
+    logger.debug(v.subject)
+
+    assert(v.series_id == 'XYZ')
+    assert(v.study.hashed_id == '554XZAIY6AW7W')
+    assert(v.subject.pseudonym == 'Fortinbras^Quickly^S^King^IV')
+
+    logger.debug(v.subject.children[0].children[0])
+    assert(v.subject.children[0].children[0].series_id == 'XYZ')
 
 
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
-    polynym_tests()
+
+    test_polynym2()
+    test_dicom_nodes()
 

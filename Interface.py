@@ -2,8 +2,8 @@ import logging
 import zipfile
 import os
 import io
-from SessionWrapper import SessionWrapper, JuniperSessionWrapper
 
+from SessionWrapper import SessionWrapper, JuniperSessionWrapper
 
 
 class Interface(object):
@@ -144,7 +144,7 @@ class Interface(object):
 
         # TODO: Create anonymized study if necessary and delete it when done
 
-        if not hasattr(worklist, '__iter__'):
+        if not isinstance(worklist, list):
             worklist = [worklist]
 
         for item in worklist:

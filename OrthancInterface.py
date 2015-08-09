@@ -1,11 +1,9 @@
-
 # <https://docs.google.com/spreadsheets/d/1muKHMIb9Br-59wfaQbDeLzAfKYsoWfDSXSmyt6P4EM8/pubhtml?gid=525933398&single=true>
 
-from Interface import Interface
-from DICOMInterface import DICOMInterface
-from HierarchicalData import Series, Study, Subject
 import logging
 import os
+from Interface import Interface
+from Polynym import DicomSeries, DicomStudy, DicomSubject
 
 
 class OrthancInterface(Interface):
@@ -21,42 +19,52 @@ class OrthancInterface(Interface):
 
         # Assemble the study data
         series_info = self.do_get('series', series_id)
+        series_tags = self.do_get('series', series_id, 'shared-tags')
 
-        self.logger.debug(series_info)
-
+        if series_tags.get('0012,0062').get('Value') == "YES":
+            anonymized = True
+        else:
+            anonymized = False
 
         # Get study
         study = self.study_from_id(series_info['ParentStudy'])
 
         # Assemble the series data
-        series = Series(series_id=series_info['MainDicomTags'].get('SeriesInstanceUID', 'No ID'), parent=study)
-        series.series_id[self] = series_id
+        series = DicomSeries(series_id=series_info['MainDicomTags'].get('SeriesInstanceUID', 'No ID'),
+                             anonymized=anonymized,
+                             study=study)
+        series['series_id', self] = series_id
 
+        # Add series to the interface
         self.series[series_id] = series
-
         return series
 
-    def study_from_id(self, study_id, subject=None):
+    def study_from_id(self, study_id):
         # Check if study is already in interface
         if self.studies.get(study_id):
             return self.studies.get(study_id)
 
         # Assemble the study data
         study_info = self.do_get('studies', study_id)
+        study_tags = self.do_get('studies', study_id, 'shared-tags')
+
+        if study_tags.get('0012,0062').get('Value') == "YES":
+            anonymized = True
+        else:
+            anonymized = False
+
+        # self.logger.info('Tags: %s' % study_tags['0012,0062']['Value'])
 
         # Get subject
         subject = self.subject_from_id(study_info['ParentPatient'])
 
         # Assemble the study data
-        study = Study(study_id=study_info['MainDicomTags'].get('AccessionNumber', 'No ID'), parent=subject)
-        study.study_id[self] = study_id
+        study = DicomStudy(study_id=study_info['MainDicomTags'].get('AccessionNumber', 'No ID'),
+                           anonymized=anonymized,
+                           subject=subject)
+        study['study_id', self] = study_id
 
         self.studies[study_id] = study
-
-        # TODO: Need to grab institution, mdname, to deidentify correctly
-        # InstitutionName = 0008,0080
-        # ReferringPhysiciansName = 0008,0090
-
         return study
 
     def subject_from_id(self, subject_id):
@@ -66,12 +74,21 @@ class OrthancInterface(Interface):
 
         # Assemble the subject data
         subject_info = self.do_get('patients', subject_id)
+        subject_tags = self.do_get('patients', subject_id, 'shared-tags')
 
-        subject = Subject(subject_id=subject_info['MainDicomTags'].get('PatientID', 'No ID'),
-                          subject_name=subject_info['MainDicomTags'].get('PatientName', 'No Name'),
-                          subject_dob=subject_info['MainDicomTags'].get('PatientBirthDate', 'No Date'))
-        subject.subject_id[self] = subject_id
+        # Check deidentification status
+        if subject_tags.get('0012,0062').get('Value') == "YES":
+            anonymized = True
+        else:
+            anonymized = False
 
+        subject = DicomSubject(subject_id=subject_info['MainDicomTags'].get('PatientID', 'No ID'),
+                               subject_name=subject_info['MainDicomTags'].get('PatientName', 'No Name'),
+                               subject_dob=subject_info['MainDicomTags'].get('PatientBirthDate', 'No Date'),
+                               anonymized=anonymized)
+        subject['subject_id', self] = subject_id
+
+        # Add subject to the interface
         self.subjects[subject_id] = subject
         return subject
 
@@ -104,76 +121,103 @@ class OrthancInterface(Interface):
                 item_data = self.do_get('queries', resp_id, 'answers', a, 'content?simplify')
                 item = None
                 if level == 'subject':
-                    item = Subject(item_data['PatientID'])
-                    item.subject_id[source] = (resp_id, a)
+                    item = DicomSubject(subject_id=item_data.get('PatientID'),
+                                        subject_name=item_data.get('PatientName'))
+                    item['subject_id', source] = (resp_id, a)
                 if level == 'study':
-                    subject = Subject(item_data['PatientID'])
-                    subject.subject_name.o = item_data.get('PatientName')
-                    item = Study(item_data['AccessionNumber'])
-                    item.study_id[source] = (resp_id, a)
-                    item.subject = subject
+                    subject = DicomSubject(subject_id=item_data.get('PatientID'),
+                                           subject_name=item_data.get('PatientName'))
+                    item = DicomStudy(study_id=item_data['AccessionNumber'], subject=subject)
+                    item['study_id', source] = (resp_id, a)
                 elif level == 'series':
-                    # subject = Subject(item_data['PatientID'])
-                    # subject.subject_name.o = item_data['PatientName']
-                    # study = Study(item_data['AccessionNumber'])
-                    # study.subject = subject
-                    item = Series(item_data['SeriesInstanceUID'])
-                    item.series_id[source] = (resp_id, a)
+                    subject = DicomSubject(subject_id=item_data.get('PatientID'),
+                                           subject_name=item_data.get('PatientName'))
+                    study = DicomStudy(accession_number=item_data['AccessionNumber'], subject=subject)
+                    item = DicomSeries(series_id=item_data['SeriesInstanceUID'], study=study)
+                    item['series_id', source] = (resp_id, a)
                     # item.study = study
                 worklist.append(item)
         else:
             # Add to available studies
+            item = None
             item_data = self.do_post('tools/find', data=data)
-            self.logger.debug(item_data)
+            self.logger.debug('Local find: %s' % item_data)
             if level == 'study':
                 item = self.study_from_id(item_data[0])
-                item.study_id[self] = item_data[0]
+                item['study_id', self] = item_data[0]
             elif level == 'series':
                 item = self.series_from_id(item_data[0])
-                item.series_id[self] = item_data[0]
+                item['series_id', self] = item_data[0]
             worklist.append(item)
 
         return worklist
 
+    def delete(self, worklist):
+        if not isinstance(worklist, list):
+            worklist = [worklist]
+
+        for item in worklist:
+            if isinstance(item, DicomStudy):
+                self.do_delete('studies', item['study_id', self])
+                self.studies[item.study_id] = None
+                # TODO: Should delete series as well
+            elif isinstance(item, DicomSeries):
+                self.do_delete('series', item['series_id', self])
+                self.series[item.series_id] = None
+            elif isinstance(item, DicomSubject):
+                self.do_delete('patients', item['subject_id', self])
+                self.subjects[item.subject_id] = None
+                # TODO: Should delete studies and series as well
+            else:
+                self.logger.warn('Unknown Dicom item requested for delete')
+
     def send(self, item, target):
         raise NotImplementedError
 
-    def retreive(self, item, source):
-        # Retreiving from DICOM modality or Orthanc peer
-        if isinstance(source, DICOMInterface):
-            # Copy from modality
-            if isinstance(item, Study):
-                self.do_post('queries', item.study_id.get(source)[0],
-                             'answers', item.study_id.get(source)[1],
-                             'retrieve', data=self.aetitle)
-            elif isinstance(item, Series):
-                self.do_post('queries', item.series_id.get(source)[0],
-                             'answers', item.series_id.get(source)[1],
-                             'retrieve', data=self.aetitle)
-                self.logger.debug('ortho id %s' % item.series_id.o)
-                return self.find('series', {'SeriesInstanceUID': item.series_id.o})
-            else:
-                self.logger.warn('Unknown item type')
+    def retrieve(self, item, source):
+        # Retrieving from DICOM modality or Orthanc peer
+        if isinstance(item, DicomStudy):
+            self.do_post('queries', item.get(('study_id', source))[0],  # id, source = (q,a)
+                         'answers', item.get(('study_id', source))[1],
+                         'retrieve', data=self.aetitle)
+            self.logger.debug('Study id: %s' % item.study_id)
+            return self.find('study', {'StudyInstanceID': item.study_id, 'PatientID': item.subject.subject_id})
+        elif isinstance(item, DicomSeries):
+            self.do_post('queries', item.get(('series_id', source))[0],
+                         'answers', item.get(('series_id', source))[1],
+                         'retrieve', data=self.aetitle)
+            self.logger.debug('Series id: %s' % item.series_id)
+            return self.find('series', {'SeriesInstanceUID': item.series_id, 'PatientID': item.subject.subject_id})
         else:
-            raise NotImplementedError
+            self.logger.warn('Unknown item type requested for retreive')
 
     def download_data(self, item):
 
-        if isinstance(item, Study):
-            item.data = self.do_get('studies', item.study_id.get(self), 'archive')
-        elif isinstance(item, Series):
-            item.data = self.do_get('series', item.series_id.get(self), 'archive')
+        if isinstance(item, DicomStudy):
+            item.data = self.do_get('studies', item.get(('study_id', self)), 'archive')
+        elif isinstance(item, DicomSeries):
+            item.data = self.do_get('series', item.get(('series_id', self)), 'archive')
         else:
-            self.logger.warn('Unknown item type')
+            self.logger.warn('Unknown item type requested for download')
 
     def upload_data(self, study):
         # If there is study.data, send it.
         # If there is study.available_on_source, retreive it and create a new id
-        pass
+        raise NotImplementedError
 
     def all_studies(self):
+        # Reset study index
+        self.studies = {}
         study_ids = self.do_get('studies')
-        self.studies = {study_id: self.study_from_id(study_id) for study_id in study_ids}
+        for study_id in study_ids:
+            self.study_from_id(study_id)
+
+    def all_subjects(self):
+        # Reset subjects index
+        self.subjects = {}
+        subject_ids = self.do_get('patients')
+        for subject_id in subject_ids:
+            self.subject_from_id(subject_id)
 
     # Orthanc ONLY functions
 
@@ -208,41 +252,51 @@ class OrthancInterface(Interface):
         study.study_id[self] = anon_study_id
 
 
-def orthanc_tests():
+def orthanc_tests2():
 
-    #from nose.plugins.skip import SkipTest
+    logger = logging.getLogger(orthanc_tests2.__name__)
 
-    logger = logging.getLogger(orthanc_tests.__name__)
+    # REST Interface Orthanc
+    source = OrthancInterface(address="http://localhost:8043", aetitle='3DLAB-DEV1')
 
-    # Test Orthanc Instantiate
-    source = OrthancInterface(address="http://localhost:8042")
+    if False:
+        source.all_subjects()
+
+        for item in source.subjects.values():
+            source.delete(item)
+
+        source.all_studies()
+        assert source.studies == {}
+
+        # Test find in other repo
+        item = source.find('study', {'PatientName': 'ZNE*'}, '3dlab-dev0')[0]
+        logger.debug(item)
+
+        assert item.subject.subject_id == u'ZA4VSDAUSJQA6'
+
+        source.retreive(item, '3dlab-dev0')
+        # Have to wait for a while for it to show up...
+
     source.all_studies()
+
     logger.debug(source.studies)
     assert '163acdef-fe16e651-3f35f584-68c2103f-59cdd09d' in source.studies.keys()
 
-    # TODO: Test Orthanc Query -> Worklist
+    logger.debug(source.subjects)
+    assert 'be8f2869-69326801-e0800ffb-f4a9f179-ad110c47' in source.subjects.keys()
+
+    # Test find in this repo
+    item = source.find('study', {'PatientName': 'ZNE*'})[0]
+    logger.debug(item.subject)
+    assert item.subject.subject_id == u'ZA4VSDAUSJQA6'
 
     # Test Orthanc Download
-    if False:
-        source.download_archive(source.studies.values()[0], 'orthanc_tmp_archive')
-        assert os.path.getsize('orthanc_tmp_archive.zip') == 35884083
+    if True:
+        source.download_archive(item, 'orthanc_tmp_archive')
+        assert os.path.getsize('orthanc_tmp_archive.zip') > 35000000
         os.remove('orthanc_tmp_archive.zip')
-
-    # TODO: Test Orthanc Upload
-
-    # TODO: Test Orthanc Delete
-
-    # TODO: Test Orthanc Anonymize
-
-    # Test Orthanc Query DICOM node -> Worklist
-    source = OrthancInterface(address="http://localhost:8043")
-    r = source.find('study', {'PatientName': 'ZNE*'}, '3dlab-dev0')[0]
-    assert r.subject.subject_id.o == u'ZA4VSDAUSJQA6'
-
-    # TODO: Test Orthanc Retreive from DICOM
-
 
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
-    orthanc_tests()
+    orthanc_tests2()

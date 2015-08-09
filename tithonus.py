@@ -21,13 +21,13 @@ import argparse
 import os
 import yaml
 
-__package__ = "Tithonus"
+__package__ = "tithonus"
 __description__ = "Gatekeeper script for mirroring deidentified and reformatted medical images"
 __url__ = "https://github.com/derekmerck/Tithonus"
 __author__ = 'Derek Merck'
 __email__ = "derek_merck@brown.edu"
 __license__ = "MIT"
-__version_info__ = ('0', '2', '2')
+__version_info__ = ('0', '2', '3')
 __version__ = '.'.join(__version_info__)
 logger = logging.getLogger('Tithonus CLI')
 
@@ -148,7 +148,7 @@ def test_dicom_download_dev():
     target = Interface.factory('3dlab-dev1', repos)
 
     w = source.find('series', {'SeriesInstanceUID': '1.2.840.113654.2.55.4303894980888172655039251025765147023'})
-    u = target.retreive(w[0], source)
+    u = target.retrieve(w[0], source)
     target.copy(u[0], target, 'nlst_tmp_archive')
     assert os.path.getsize('nlst_tmp_archive.zip') == 176070
     os.remove('nlst_tmp_archive.zip')
@@ -157,10 +157,7 @@ def test_dicom_download_dev():
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
-    test_connect()
-    exit()
-
-    test_dicom_download_production()
+    test_dicom_download_dev()
     exit()
 
     args = get_args()

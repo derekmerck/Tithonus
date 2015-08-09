@@ -1,6 +1,7 @@
-from Interface import Interface
 import logging
 import os
+
+from Interface import Interface
 
 
 class DICOMInterface(Interface):
@@ -26,18 +27,18 @@ def dicom_tests():
     source = DICOMInterface(proxy=proxy, name='3dlab-dev0+dcm')
 
     # Test DICOM Subject Query
-    r = source.find('subject', {'PatientName': 'ZNE*'})
-    assert r[0].subject_id.o == 'ZA4VSDAUSJQA6'
+    r = source.find('subject', {'PatientName': 'ZNE*'})[0]
+    assert r.subject_id == 'ZA4VSDAUSJQA6'
 
     # Test DICOM Q/R/DL
-    from Tithonus import read_yaml
+    from tithonus import read_yaml
     repos = read_yaml('repos.yaml')
 
     source = Interface.factory('3dlab-dev0+dcm', repos)
     target = Interface.factory('3dlab-dev1', repos)
 
     w = source.find('series', {'SeriesInstanceUID': '1.2.840.113654.2.55.4303894980888172655039251025765147023'})[0]
-    u = target.retreive(w, source)[0]
+    u = target.retrieve(w, source)[0]
     target.copy(u, target, 'nlst_tmp_archive')
     assert os.path.getsize('nlst_tmp_archive.zip') == 176070
     os.remove('nlst_tmp_archive.zip')

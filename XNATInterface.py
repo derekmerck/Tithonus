@@ -1,5 +1,5 @@
 from Interface import Interface
-from HierarchicalData import Series, Study, Subject
+from Polynym import DicomSeries, DicomStudy, DicomSubject
 import logging
 
 
@@ -12,35 +12,38 @@ class XNATInterface(Interface):
 
     # TODO: Build series, studies, and subjects correctly
     def series_from_id(self, series_id):
-        return Series(series_id)
+        return DicomSeries(series_id=series_id, anonymized=True)
 
     def study_from_id(self, study_id):
-        return Study(study_id)
+        return DicomStudy(study_id=study_id, anonymized=True)
 
     def subject_from_id(self, subject_id):
-        return Subject(subject_id)
+        return DicomSubject(subject_id=subject_id, anonymized=True)
 
     def all_studies(self):
         resp = self.do_get('data/experiments')
         # Find all of the data labels
         results = resp.get('ResultSet').get('Result')
-        _studies = [Study(result['ID']) for result in results]
-        return _studies
+        for result in results:
+            DicomStudy(result['ID'])
 
     def upload_data(self, item):
         # See <https://wiki.xnat.org/display/XKB/Uploading+Zip+Archives+to+XNAT>
 
-        params = {'overwrite': 'delete',
-                  'project': item.subject.project.project_id,
-                  'subject': item.subject.subject_id,
-                  'session': item.study_id}
-        headers = {'content-type': 'application/zip'}
-        self.do_post('data/services/import?format=html', params=params, headers=headers, data=item.data)
+        if isinstance(item, DicomSeries):
+            params = {'overwrite': 'delete',
+                      'project': item.subject.project.project_id,
+                      'subject': item.subject.subject_id,
+                      'session': item.study_id}
+            headers = {'content-type': 'application/zip'}
+            self.do_post('data/services/import?format=html', params=params, headers=headers, data=item.data)
+        else:
+            self.logger.warn('XNATInterface can only upload series items')
 
     def delete(self, worklist):
         # Unfortunately need the project for a delete, but perhaps easier with a 'root' proj
 
-        if not hasattr(worklist, '__iter__'):
+        if not isinstance(worklist, list):
             worklist = [worklist]
 
         for item in worklist:
@@ -59,19 +62,9 @@ class XNATInterface(Interface):
                     'experiments', study.study_id[self], params=params)
 
 
-def xnat_tests():
+def test_xnat():
 
-    logger = logging.getLogger(xnat_tests.__name__)
-
-    # TODO: Test XNAT Instantiate
-
-    # TODO: Test XNAT Query
-
-    # TODO: Test XNAT Upload with corrent subject name, study name, etc.
-
-    # TODO: Test XNAT Download
-
-    # TODO: Test xnat Delete
+    logger = logging.getLogger(test_xnat.__name__)
 
     # Need to test:
     # 1. xnat-dev is up
@@ -84,4 +77,4 @@ def xnat_tests():
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
-    xnat_tests()
+    test_xnat()

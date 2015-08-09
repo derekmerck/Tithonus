@@ -2,10 +2,19 @@ import logging
 import zipfile
 import os
 import io
-from RequestsSessionWrapper import SessionWrapper, JuniperSessionWrapper
+from SessionWrapper import SessionWrapper, JuniperSessionWrapper
+
 
 
 class Interface(object):
+
+    # -----------------------------
+    # Available DicomData across all interfaces
+    # -----------------------------
+
+    available_series = {}
+    available_studies = {}
+    available_subjects = {}
 
     # -----------------------------
     # Public factory

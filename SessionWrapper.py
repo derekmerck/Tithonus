@@ -8,6 +8,7 @@ from urlparse import urlparse
 # Cookie jar for sharing proxy credentials
 cookie_jar = {}
 
+
 class SessionWrapper(requests.Session):
     # Convenience functions for requests.Session
 

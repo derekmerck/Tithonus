@@ -32,6 +32,14 @@ def test_montage():
     r = source.find('study', 'fracture', 'rad')
     assert(r['meta']['total_count'] > 1400000)
 
+    # Test shared juniper session cookies
+    source2 = Interface.factory('montage', repos)
+
+    # Look in collection "rad" for query string "fracture"
+    r = source2.find('study', 'fracture', 'rad')
+    assert(r['meta']['total_count'] > 1400000)
+
+
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)

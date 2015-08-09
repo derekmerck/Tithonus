@@ -22,6 +22,13 @@ class Polynym2(dict):
     def __init__(self, **kwargs):
         super(Polynym2, self).__init__(**kwargs)
         self.context_maps = {}
+        # if self['anonymized']:
+        #     # Set all mappings to identity
+        #     self['override_rule'] = Polynym2.identity_rule
+
+    @property
+    def anonymized(self):
+        return self.get('anonymized', False)
 
     def add_map(self, source, target, rule):
         if self.context_maps.get(source):
@@ -30,11 +37,19 @@ class Polynym2(dict):
             self.context_maps[source] = {target: rule}
         self.apply_rules()
 
+    # def set_all_rules_to_identity(self):
+    #     # If this node is already anonymized, set all rules to identity mappings
+    #     for source, mapping in self.context_maps.iteritems():
+    #         for target, rule in mapping.iteritems():
+    #             self.context_maps[source][target] = Polynym2.identity_rule()
+    #     self.apply_rules()
+
     def apply_rules(self):
         for source, mapping in self.context_maps.iteritems():
             for target, rule in mapping.iteritems():
                 value = self.get(source)
                 #logging.debug('%s %s %s %s' % (source, target, rule, value))
+                # rule = self.get('override_rule', rule)
                 if value:
                     dict.__setitem__(self, target, rule(value))
 
@@ -63,7 +78,7 @@ class HierarchicalPolynym(Polynym2):
 
 class DicomSeries(HierarchicalPolynym):
 
-    relevant_keys = ['series_id']
+    relevant_keys = ['series_id', 'anonymized']
 
     def __init__(self, **kwargs):
         filtered_kwargs = {k:v for (k,v) in kwargs.iteritems() if k in self.relevant_keys}
@@ -94,7 +109,7 @@ class DicomSeries(HierarchicalPolynym):
 
 class DicomStudy(HierarchicalPolynym):
 
-    relevant_keys = ['study_id', 'accession_number']
+    relevant_keys = ['study_id', 'accession_number', 'anonymized']
 
     def hashed_accession_rule(self, _id):
         return GID_Mint.get_gid({'accession_number': _id})
@@ -103,10 +118,18 @@ class DicomStudy(HierarchicalPolynym):
     def __init__(self, **kwargs):
         filtered_kwargs = {k:v for (k,v) in kwargs.iteritems() if k in self.relevant_keys}
         super(DicomStudy, self).__init__(**filtered_kwargs)
-        self.add_map('accession_number', 'hashed_id', self.hashed_accession_rule)
+
+        if self.anonymized:
+            self.add_map('accession_number', 'hashed_id', Polynym2.identity_rule)
+        else:
+            self.add_map('accession_number', 'hashed_id', self.hashed_accession_rule)
         self.apply_rules()
         self.parent = kwargs.get('subject', DicomSubject(**kwargs))
         self.subject.children.append(self)
+
+    @property
+    def study_id(self):
+        return self.get('study_id')
 
     @property
     def subject(self):
@@ -123,7 +146,7 @@ class DicomStudy(HierarchicalPolynym):
 
 class DicomSubject(HierarchicalPolynym):
 
-    relevant_keys = ['subject_id', 'subject_name', 'dob']
+    relevant_keys = ['subject_id', 'subject_name', 'dob', 'anonymized']
 
     def hashed_subject_id_rule(self, subject_name):
         return GID_Mint.get_gid({'pname': subject_name})
@@ -143,10 +166,20 @@ class DicomSubject(HierarchicalPolynym):
     def __init__(self, **kwargs):
         filtered_kwargs = {k:v for (k,v) in kwargs.iteritems() if k in self.relevant_keys}
         super(DicomSubject, self).__init__(**filtered_kwargs)
-        self.add_map('subject_name', 'hashed_id',  self.hashed_subject_id_rule)
-        self.add_map('hashed_id',    'pseudonym',  self.pseudo_subject_name_rule)
-        self.add_map('dob',          'pseudo_dob', self.pseudo_subject_dob_rule)
+
+        if self.anonymized:
+            self.add_map('subject_name', 'pseudonym',  Polynym2.identity_rule)
+            self.add_map('subject_id',   'hashed_id',  Polynym2.identity_rule)
+            self.add_map('dob',          'pseudo_dob', Polynym2.identity_rule)
+        else:
+            self.add_map('subject_name', 'hashed_id',  self.hashed_subject_id_rule)
+            self.add_map('hashed_id',    'pseudonym',  self.pseudo_subject_name_rule)
+            self.add_map('dob',          'pseudo_dob', self.pseudo_subject_dob_rule)
         self.apply_rules()
+
+    @property
+    def subject_id(self):
+        return self.get('subject_id')
 
     @property
     def pseudonym(self):

@@ -5,6 +5,8 @@ from bs4 import BeautifulSoup
 from posixpath import join as urljoin
 from urlparse import urlparse
 
+# Cookie jar for sharing proxy credentials
+cookie_jar = {}
 
 class SessionWrapper(requests.Session):
     # Convenience functions for requests.Session
@@ -104,21 +106,30 @@ class JuniperSessionWrapper(SessionWrapper):
         self.j_pword   = kwargs.get('j_pword')
         self.verify = False
 
-        # Submit login credentials
-        url = urljoin(self.j_address, 'dana-na/auth/url_default/login.cgi')
-        data = {'tz_value': '-300', 'realm': 'Users', 'username': self.j_user, 'password': self.j_pword}
-        r = self.post(url, data=data, verify=False)
+        # Check to see if credentials are registered
+        if cookie_jar.get(self.j_address):
+            # Set cookies
+            self.cookies.update(cookie_jar.get(self.j_address))
+        else:
+            # Submit login credentials
+            url = urljoin(self.j_address, 'dana-na/auth/url_default/login.cgi')
+            data = {'tz_value': '-300', 'realm': 'Users', 'username': self.j_user, 'password': self.j_pword}
+            r = self.post(url, data=data, verify=False)
 
-        # Get the DSIDFormDataStr and respond to the request to start a new session
-        h = BeautifulSoup(r.content, 'html.parser')
-        dsid_field = h.find(id='DSIDFormDataStr')
-        self.logger.debug('DSID %s' % dsid_field)
-        data = {dsid_field['name']: dsid_field['value'], 'btnContinue':'Continue%20the%20session'}
-        r = self.post(url, data=data, verify=False)
-        # Now you are logged in and session cookies are saved for future requests.
+            # Get the DSIDFormDataStr and respond to the request to start a new session
+            h = BeautifulSoup(r.content, 'html.parser')
+            dsid_field = h.find(id='DSIDFormDataStr')
+            self.logger.debug('DSID %s' % dsid_field)
+            data = {dsid_field['name']: dsid_field['value'], 'btnContinue': 'Continue%20the%20session'}
+            r = self.post(url, data=data, verify=False)
+            # Now you are logged in and session cookies are saved for future requests.
+
+            # Stash the session cookies for other juniper sessions to the same proxy address
+            cookie_jar[self.j_address] = self.cookies
 
     def format_url(self, *url):
-        # https://remote.vpn.com/,DanaInfo=hostname/api/url?query
+        # This is the format:
+        #   https://remote.vpn.com/,DanaInfo=hostname/api/url?query
         url = urljoin(self.j_address, ',DanaInfo=%s' % self.hostname, *url)
         return url
 

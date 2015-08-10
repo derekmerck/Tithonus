@@ -132,9 +132,18 @@ class JuniperSessionWrapper(SessionWrapper):
         if self.cookie_jars.get(self.j_address):
             # Set cookies
             self.cookies.update(self.cookie_jars.get(self.j_address))
-            # TODO: Check to see if the stashed credentials actually work...
 
-        else:
+            # See if we can get through the firewall.
+            url = urljoin(self.j_address, 'dana/home/index.cgi')
+            r = self.get(url)
+            # If this fails, eventually it will redirect to /dana-na/auth/url_default/welcome.cgi?p=forced-off
+            if r.url == urljoin( self.j_address, "dana-na/auth/url_default/welcome.cgi"):
+                self.cookie_jars[self.j_address] = None
+                self.credentials_ok = False
+            else:
+                self.credentials_ok = True
+
+        if not self.credentials_ok:
             # Submit login credentials
             url = urljoin(self.j_address, 'dana-na/auth/url_default/login.cgi')
             data = {'tz_value': '-300', 'realm': 'Users', 'username': self.j_user, 'password': self.j_pword}

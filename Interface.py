@@ -57,10 +57,10 @@ class Interface(object):
         self.name = self.name.split('+')[0]
         self.api_key = kwargs.get('api_key')
         self.proxy = kwargs.get('proxy')
-        self.jproxy = kwargs.get('jproxy')
+        self.j_proxy = kwargs.get('j_proxy')
 
         # Create a session/juniper session
-        if self.jproxy is None:
+        if self.j_proxy is None:
             self.session = SessionWrapper(**kwargs)
         else:
             self.session = JuniperSessionWrapper(**kwargs)

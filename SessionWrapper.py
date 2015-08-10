@@ -4,13 +4,28 @@ import json
 from bs4 import BeautifulSoup
 from posixpath import join as urljoin
 from urlparse import urlparse
+import pickle
+import os
 
-# Cookie jar for sharing proxy credentials
-cookie_jar = {}
+
+def load_pickle(f, default=None):
+    if os.path.exists(f):
+        return pickle.load(open(f, "rb"))
+    else:
+        return default
+
+
+def save_pickle(f, data):
+    pickle.dump(data, open(f, "wb"))
 
 
 class SessionWrapper(requests.Session):
     # Convenience functions for requests.Session
+
+    cookie_jars_pickle = 'tmp_session_cookies.p'
+    cookie_jars = load_pickle(cookie_jars_pickle, {})
+
+    # Cookie jar for sharing proxy credentials
 
     def __init__(self, **kwargs):
         super(SessionWrapper, self).__init__()
@@ -20,8 +35,10 @@ class SessionWrapper(requests.Session):
 
         if self.address:
             self.hostname = urlparse(self.address).hostname
+            self.port = urlparse(self.address).port
         else:
             self.hostname = None
+            self.port = None
 
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info('Created session wrapper for %s' % self.hostname)
@@ -95,6 +112,11 @@ class SessionWrapper(requests.Session):
         r = self.post(url, params=params, headers=headers, data=data)
         return self.do_return(r)
 
+    def disable_verification(self):
+        requests.packages.urllib3.disable_warnings()
+        self.verify = False
+
+
 
 class JuniperSessionWrapper(SessionWrapper):
     # Init and url construction for Juniper vpn connections
@@ -105,33 +127,44 @@ class JuniperSessionWrapper(SessionWrapper):
         self.j_address = kwargs.get('j_address')
         self.j_user    = kwargs.get('j_user')
         self.j_pword   = kwargs.get('j_pword')
-        self.verify = False
+
+        self.disable_verification()
 
         # Check to see if credentials are registered
-        if cookie_jar.get(self.j_address):
+        if self.cookie_jars.get(self.j_address):
             # Set cookies
-            self.cookies.update(cookie_jar.get(self.j_address))
+            self.cookies.update(self.cookie_jars.get(self.j_address))
+            # TODO: Check to see if the stashed credentials actually work...
+
         else:
             # Submit login credentials
             url = urljoin(self.j_address, 'dana-na/auth/url_default/login.cgi')
             data = {'tz_value': '-300', 'realm': 'Users', 'username': self.j_user, 'password': self.j_pword}
-            r = self.post(url, data=data, verify=False)
+            r = self.post(url, data=data)
 
             # Get the DSIDFormDataStr and respond to the request to start a new session
             h = BeautifulSoup(r.content, 'html.parser')
             dsid_field = h.find(id='DSIDFormDataStr')
             self.logger.debug('DSID %s' % dsid_field)
             data = {dsid_field['name']: dsid_field['value'], 'btnContinue': 'Continue%20the%20session'}
-            r = self.post(url, data=data, verify=False)
+            r = self.post(url, data=data)
             # Now you are logged in and session cookies are saved for future requests.
 
             # Stash the session cookies for other juniper sessions to the same proxy address
-            cookie_jar[self.j_address] = self.cookies
+            self.cookie_jars[self.j_address] = self.cookies
+            save_pickle(self.cookie_jars_pickle, self.cookie_jars)
 
     def format_url(self, *url):
-        # This is the format:
-        #   https://remote.vpn.com/,DanaInfo=hostname/api/url?query
-        url = urljoin(self.j_address, ',DanaInfo=%s' % self.hostname, *url)
+        #   https://{proxy_hostname}/{path},DanaInfo={target_hostname},Port={port}+{query_params}
+        #   https://remote.vpn.com/path,DanaInfo=hostname+?query
+        #   https://remote.vpn.com/path,DanaInfo=hostname,Port=8042+?query
+
+        path = urljoin(*url)
+        # Empty strings are apparently considered 'falsy'
+        if self.port:
+            url = '{0}/{3}/,DanaInfo={1},Port={2}+'.format(self.j_address, self.hostname, self.port, path)
+        else:
+            url = '{0}/{3}/,DanaInfo={1}+'.format(self.j_address, self.hostname, self.port, path)
         return url
 
 

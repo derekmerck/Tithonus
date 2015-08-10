@@ -201,8 +201,7 @@ class OrthancInterface(Interface):
             self.logger.warn('Unknown item type requested for download')
 
     def upload_data(self, study):
-        # If there is study.data, send it.
-        # If there is study.available_on_source, retreive it and create a new id
+        # TODO: Implement Orthanc.upload_data
         raise NotImplementedError
 
     def all_studies(self):
@@ -235,7 +234,7 @@ class OrthancInterface(Interface):
                 "0008-0050": study.study_id.a,              # AccessionNumber
                 "0012-0062": "YES",                         # Deidentified
                 "0010-0021": rule_author,                   # Issuer of Patient ID
-                "0012-0063": "{0} {1} {2}".format(rule_author, rule_name, rule_version) # Deidentification method
+                "0012-0063": "{0} {1} {2}".format(rule_author, rule_name, rule_version)  # Deidentification method
                 },
             "Keep": [
                 "0008-0080",                                # InstitutionName
@@ -274,7 +273,7 @@ def orthanc_tests2():
 
         assert item.subject.subject_id == u'ZA4VSDAUSJQA6'
 
-        source.retreive(item, '3dlab-dev0')
+        source.retrieve(item, '3dlab-dev0')
         # Have to wait for a while for it to show up...
 
     source.all_studies()

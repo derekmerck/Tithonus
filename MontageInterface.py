@@ -11,6 +11,7 @@ class MontageInterface(Interface):
         pass
 
     def study_from_id(self, study_id):
+        # TODO: Implement Montage.study_from_id
         pass
 
     def series_from_id(self, series_id):
@@ -18,7 +19,7 @@ class MontageInterface(Interface):
 
     def find(self, level, question, source=None):
         return self.do_get('api/v1/index/%s/search' % source, params={'q': question, 'format': 'json'})
-        # TODO: Implement study_from_id so we can return a worklist referencing the PACS
+        # TODO: Parse Montage.find results to create a worklist of studies
 
 
 def test_montage():
@@ -35,15 +36,12 @@ def test_montage():
     r = source.find('study', 'fracture', 'rad')
     assert(r['meta']['total_count'] > 1400000)
 
-    # # Test shared juniper session cookies
-    # source2 = Interface.factory('montage', repos)
-    #
-    # # Look in collection "rad" for query string "fracture"
-    # r = source2.find('study', 'fracture', 'rad')
-    # assert(r['meta']['total_count'] > 1400000)
+    # Test shared juniper session cookies
+    source2 = Interface.factory('montage', repos)
 
-    # source3 = Interface.factory('3dlab+lsmaster', repos)
-    # source3.all_studies()
+    # Look in collection "rad" for query string "fracture"
+    r = source2.find('study', 'fracture', 'rad')
+    assert(r['meta']['total_count'] > 1400000)
 
 
 if __name__ == "__main__":

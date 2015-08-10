@@ -10,7 +10,7 @@ class XNATInterface(Interface):
     def __init__(self, **kwargs):
         super(XNATInterface, self).__init__(**kwargs)
 
-    # TODO: Build series, studies, and subjects correctly
+    # TODO: XNAT build series, studies, and subjects correctly
     def series_from_id(self, series_id):
         return DicomSeries(series_id=series_id, anonymized=True)
 
@@ -34,21 +34,21 @@ class XNATInterface(Interface):
             params = {'overwrite': 'delete',
                       'project': item.subject.project.project_id,
                       'subject': item.subject.subject_id,
-                      'session': item.study_id}
+                      'session': item.study.study_id}
             headers = {'content-type': 'application/zip'}
             self.do_post('data/services/import?format=html', params=params, headers=headers, data=item.data)
         else:
             self.logger.warn('XNATInterface can only upload series items')
 
     def delete(self, worklist):
-        # Unfortunately need the project for a delete, but perhaps easier with a 'root' proj
+        # Unfortunately need the project for a delete, but perhaps easier with a 'root' project?
 
         if not isinstance(worklist, list):
             worklist = [worklist]
 
         for item in worklist:
             params = {'remove_files': 'true'}
-            self.do_delete('data/archive/projects', item.subject.project.project_id,
+            self.do_delete('data/archive/projects', item.subject.project_id,
                            'subjects', item.subject.subject_id[self],
                            'experiments', item.study_id[self], params=params)
 

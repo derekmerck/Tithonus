@@ -20,7 +20,6 @@ def save_pickle(f, data):
 
 
 class SessionWrapper(requests.Session):
-    # Convenience functions for requests.Session
 
     cookie_jars_pickle = 'tmp_session_cookies.p'
     cookie_jars = load_pickle(cookie_jars_pickle, {})
@@ -50,7 +49,7 @@ class SessionWrapper(requests.Session):
 
     def do_return(self, r):
         # Return dict if possible, but content otherwise (for image data)
-        #self.logger.info(r.headers.get('content-type'))
+        # self.logger.info(r.headers.get('content-type'))
         if r.status_code is not 200:
             self.logger.warn('REST interface returned error %s', r.status_code)
             ret = r.content
@@ -62,7 +61,7 @@ class SessionWrapper(requests.Session):
                     msg = ret
                 else:
                     msg = 'a long json declaration'
-            except ValueError, e:
+            except ValueError:
                 ret = r.content
                 msg = 'a bad json declaration'
         else:
@@ -117,7 +116,6 @@ class SessionWrapper(requests.Session):
         self.verify = False
 
 
-
 class JuniperSessionWrapper(SessionWrapper):
     # Init and url construction for Juniper vpn connections
 
@@ -125,8 +123,8 @@ class JuniperSessionWrapper(SessionWrapper):
         super(JuniperSessionWrapper, self).__init__(**kwargs)
 
         self.j_address = kwargs.get('j_address')
-        self.j_user    = kwargs.get('j_user')
-        self.j_pword   = kwargs.get('j_pword')
+        self.j_user = kwargs.get('j_user')
+        self.j_pword = kwargs.get('j_pword')
 
         self.disable_verification()
 
@@ -147,7 +145,7 @@ class JuniperSessionWrapper(SessionWrapper):
             dsid_field = h.find(id='DSIDFormDataStr')
             self.logger.debug('DSID %s' % dsid_field)
             data = {dsid_field['name']: dsid_field['value'], 'btnContinue': 'Continue%20the%20session'}
-            r = self.post(url, data=data)
+            self.post(url, data=data)
             # Now you are logged in and session cookies are saved for future requests.
 
             # Stash the session cookies for other juniper sessions to the same proxy address
@@ -172,4 +170,3 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
     pass
-

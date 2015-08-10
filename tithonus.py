@@ -11,7 +11,7 @@ Spring 2015
 
 <https://github.com/derekmerck/Tithonus>
 
-Dependencies: requests, yaml, GID_Mint
+Dependencies: requests, PyYAML, beautifulsoup4, GID_Mint
 
 See README.md for usage, notes, and license info.
 '''
@@ -82,9 +82,9 @@ def get_args():
     parser.add_argument('source',
                         help='Source/working image repository as json or ID in config')
     parser.add_argument('target',
-                        help='Target image repository json or as ID in config')
+                        help='Target image repository as json or as ID in config')
     parser.add_argument('-i', '--input',
-                        help='Worklist of items to process or query/filter as json, yaml or csv file')
+                        help='Worklist of items to process or query/filter as json, yaml, or csv file')
     parser.add_argument('-o', '--outfile',
                         help='File for output worklist from "find" function')
     parser.add_argument('-a', '--anonymize',

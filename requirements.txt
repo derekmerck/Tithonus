@@ -1,2 +1,3 @@
-requests
-pyyaml
+Requests
+pyYAML
+beautifulsoup4

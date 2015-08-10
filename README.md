@@ -20,6 +20,7 @@ Gatekeeper script for mirroring deidentified and reformatted medical images from
 - Python 2.7
 - [PyYAML](http://pyyaml.org)
 - [Requests](http://docs.python-requests.org/en/latest/)
+- [BeautifulSoup4](http://www.crummy.com/software/BeautifulSoup/)
 - [GID_Mint](https://github.com/derekmerck/GID_Mint)
 
 

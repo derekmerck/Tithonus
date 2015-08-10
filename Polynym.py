@@ -37,35 +37,23 @@ class Polynym(dict):
             self.context_maps[source] = {target: rule}
         self.apply_rules()
 
-    # def set_all_rules_to_identity(self):
-    #     # If this node is already anonymized, set all rules to identity mappings
-    #     for source, mapping in self.context_maps.iteritems():
-    #         for target, rule in mapping.iteritems():
-    #             self.context_maps[source][target] = Polynym2.identity_rule()
-    #     self.apply_rules()
-
     def apply_rules(self):
         for source, mapping in self.context_maps.iteritems():
             for target, rule in mapping.iteritems():
                 value = self.get(source)
-                #logging.debug('%s %s %s %s' % (source, target, rule, value))
-                # rule = self.get('override_rule', rule)
                 if value:
                     dict.__setitem__(self, target, rule(value))
 
     def __setitem__(self, key, value):
-        # for target, rule in self.context_maps.get(key, {}).iteritems():
-        #     dict.__setitem__(self, target, rule(value))
-        #     # Single layer of recursion
-        #     for starget, srule in self.context_maps.get(target, {}).iteritems():
-        #         dict.__setitem__(self, starget, srule(value))
         dict.__setitem__(self, key, value)
         self.apply_rules()
 
     def __cmp__(self, other):
         # Polynyms are considered equivalent if they share _hashed_id_ (same value and rule)
-        if self.get('hashed_id') == other.get('hashed_id'): return True
-        else: return False
+        if self.get('hashed_id') == other.get('hashed_id'):
+            return True
+        else:
+            return False
 
 
 class HierarchicalPolynym(Polynym):
@@ -74,6 +62,7 @@ class HierarchicalPolynym(Polynym):
         super(HierarchicalPolynym, self).__init__(**kwargs)
         self.parent = kwargs.get('parent')
         self.children = kwargs.get('children', [])
+        self.data = kwargs.get('data')
 
 
 class DicomSeries(HierarchicalPolynym):
@@ -81,7 +70,7 @@ class DicomSeries(HierarchicalPolynym):
     relevant_keys = ['series_id', 'anonymized']
 
     def __init__(self, **kwargs):
-        filtered_kwargs = {k:v for (k,v) in kwargs.iteritems() if k in self.relevant_keys}
+        filtered_kwargs = {k: v for (k, v) in kwargs.iteritems() if k in self.relevant_keys}
         super(DicomSeries, self).__init__(**filtered_kwargs)
         self.parent = kwargs.get('study', DicomStudy(**kwargs))
         self.study.children.append(self)
@@ -116,7 +105,7 @@ class DicomStudy(HierarchicalPolynym):
         # return Polynym2.md5_rule(id)
 
     def __init__(self, **kwargs):
-        filtered_kwargs = {k:v for (k,v) in kwargs.iteritems() if k in self.relevant_keys}
+        filtered_kwargs = {k: v for (k, v) in kwargs.iteritems() if k in self.relevant_keys}
         super(DicomStudy, self).__init__(**filtered_kwargs)
 
         if self.anonymized:
@@ -164,8 +153,12 @@ class DicomSubject(HierarchicalPolynym):
         return GID_Mint.get_pdob_for_dob_and_gid({'gid': self['hashed_id'], 'dob': dob})
 
     def __init__(self, **kwargs):
-        filtered_kwargs = {k:v for (k,v) in kwargs.iteritems() if k in self.relevant_keys}
+        filtered_kwargs = {k: v for (k, v) in kwargs.iteritems() if k in self.relevant_keys}
         super(DicomSubject, self).__init__(**filtered_kwargs)
+
+        # XNAT subjects are associated with research projects
+        # (and diferent projects may have different anonymization rules)
+        self.project_id = kwargs.get('project_id', 'root')
 
         if self.anonymized:
             self.add_map('subject_name', 'pseudonym',  Polynym.identity_rule)
@@ -239,4 +232,3 @@ if __name__ == "__main__":
 
     test_polynym2()
     test_dicom_nodes()
-

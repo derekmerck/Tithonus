@@ -49,7 +49,7 @@ setup(
     py_modules=["tithonus", "Interface", "Polynym"],
     include_package_data=True,
     zip_safe=True,
-    install_requires=['requests', 'PyYAML'],
+    install_requires=['requests', 'PyYAML', 'beautifulsoup4'],
     classifiers=[
         'Development Status :: 1 - Planning',
         'Intended Audience :: Healthcare Industry',

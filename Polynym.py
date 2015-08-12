@@ -135,7 +135,7 @@ class DicomStudy(HierarchicalPolynym):
 
 class DicomSubject(HierarchicalPolynym):
 
-    relevant_keys = ['subject_id', 'subject_name', 'dob', 'anonymized']
+    relevant_keys = ['subject_id', 'subject_name', 'dob', 'project_id', 'anonymized']
 
     def hashed_subject_id_rule(self, subject_name):
         return GID_Mint.get_gid({'pname': subject_name})

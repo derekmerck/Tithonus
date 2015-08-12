@@ -48,7 +48,7 @@ class OrthancInterface(Interface):
         study_info = self.do_get('studies', study_id)
         study_tags = self.do_get('studies', study_id, 'shared-tags')
 
-        if study_tags.get('0012,0062').get('Value') == "YES":
+        if study_tags.get('0012,0062',{}).get('Value') == "YES":
             anonymized = True
         else:
             anonymized = False
@@ -77,7 +77,7 @@ class OrthancInterface(Interface):
         subject_tags = self.do_get('patients', subject_id, 'shared-tags')
 
         # Check deidentification status
-        if subject_tags.get('0012,0062').get('Value') == "YES":
+        if subject_tags.get('0012,0062',{}).get('Value') == "YES":
             anonymized = True
         else:
             anonymized = False
@@ -250,6 +250,15 @@ class OrthancInterface(Interface):
         study.study_id[self, 'original'] = study.study_id[self]
         study.study_id[self] = anon_study_id
 
+def test_orthanc_juniper():
+
+    logger = logging.getLogger(orthanc_tests2.__name__)
+    from tithonus import read_yaml
+
+    repos = read_yaml('repos.yaml')
+    source = Interface.factory('deathstar+lsmaster', repos)
+
+    source.all_studies()
 
 def orthanc_tests2():
 
@@ -298,4 +307,5 @@ def orthanc_tests2():
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
-    orthanc_tests2()
+    test_orthanc_juniper()
+#    orthanc_tests2()

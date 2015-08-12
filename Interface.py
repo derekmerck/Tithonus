@@ -26,6 +26,7 @@ class Interface(object):
         from XNATInterface import XNATInterface
         from DICOMInterface import DICOMInterface
         from MontageInterface import MontageInterface
+        from TCIAInterface import TCIAInterface
 
         # Accepts a config dict and returns an interface
         config = _config[name]
@@ -39,6 +40,8 @@ class Interface(object):
             return DICOMInterface(name=name, proxy=proxy, **_config)
         elif config['type'] == 'montage':
             return MontageInterface(name=name, **config)
+        elif config['type'] == 'tcia':
+            return TCIAInterface(name=name, **config)
         else:
             logger = logging.getLogger(Interface.factory.__name__)
             logger.warn("Unknown repo type '%s' in config", name)
@@ -173,6 +176,8 @@ class Interface(object):
             self.logger.info('Uploading image archive %s', fn)
             f = open(fn, 'rb')
             item.data = f.read()
+            f.close()
+
         self.upload_data(item)
 
     def download_archive(self, item, fn):
@@ -208,26 +213,26 @@ class Interface(object):
     def do_post(self, *url, **kwargs):
         return self.session.do_post(*url, **kwargs)
 
-    def zipdir(top, fno=None):
+    def zipdir(self, top, fno=None):
 
-        file_like_object = None
+        file_like_object = io.BytesIO()
         if fno is None:
-            # logger.info('Creating in-memory zip')
-            file_like_object = io.BytesIO()
+            self.logger.info('Creating in-memory zip')
             zipf = zipfile.ZipFile(file_like_object, 'w', zipfile.ZIP_DEFLATED)
         else:
-            # logger.info('Creating in-memory zip')
+            self.logger.info('Creating zip file')
             zipf = zipfile.ZipFile(fno, 'w', zipfile.ZIP_DEFLATED)
 
         for dirpath, dirnames, filenames in os.walk(top):
             for f in filenames:
                 fn = os.path.join(dirpath, f)
+                # self.logger.debug(fn)
                 zipf.write(fn, os.path.relpath(fn, top))
 
+        zipf.close()
+
         if fno is None:
-            return file_like_object
-        else:
-            zipf.close()
+            return file_like_object.getvalue()
 
 
 def interface_tests():

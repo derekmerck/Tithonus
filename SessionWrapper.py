@@ -1,11 +1,11 @@
 import logging
 import requests
 import json
-from bs4 import BeautifulSoup
 from posixpath import join as urljoin
 from urlparse import urlparse
 import pickle
 import os
+from bs4 import BeautifulSoup
 
 
 def load_pickle(f, default=None):
@@ -91,7 +91,7 @@ class SessionWrapper(requests.Session):
         headers = kwargs.get('headers')
         data = kwargs.get('data')
         if type(data) is dict:
-            headers = {'content-type': 'application/json'}
+            headers.update({'content-type': 'application/json'})
             data = json.dumps(data)
         url = self.format_url(*url)
         self.logger.debug('Putting url: %s' % url)
@@ -103,11 +103,11 @@ class SessionWrapper(requests.Session):
         headers = kwargs.get('headers')
         data = kwargs.get('data')
         if type(data) is dict:
-            headers = {'content-type': 'application/json'}
+            headers.update({'content-type': 'application/json'})
             data = json.dumps(data)
             self.logger.info(data)
         url = self.format_url(*url)
-        self.logger.debug('Posting to url: %s' % url)
+        self.logger.debug('Posting to url: %s w params: %s' % (url, params))
         r = self.post(url, params=params, headers=headers, data=data)
         return self.do_return(r)
 
@@ -133,11 +133,11 @@ class JuniperSessionWrapper(SessionWrapper):
             # Set cookies
             self.cookies.update(self.cookie_jars.get(self.j_address))
 
-            # See if we can get through the firewall.
+            # See if the credentials are still any good
             url = urljoin(self.j_address, 'dana/home/index.cgi')
             r = self.get(url)
             # If this fails, eventually it will redirect to /dana-na/auth/url_default/welcome.cgi?p=forced-off
-            if r.url == urljoin( self.j_address, "dana-na/auth/url_default/welcome.cgi"):
+            if 'welcome.cgi' in r.url:
                 self.cookie_jars[self.j_address] = None
                 self.credentials_ok = False
             else:

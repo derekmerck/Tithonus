@@ -109,8 +109,13 @@ def tcia_tests():
     logger = logging.getLogger(tcia_tests.__name__)
 
     # Test TCIA Instantiate
-    source = TCIAInterface(address='https://services.cancerimagingarchive.net/services/v3/TCIA',
-                           api_key=os.environ['TCIA_API_KEY'])
+    from tithonus import read_yaml
+    repos = read_yaml('repos.yaml')
+
+    source = Interface.factory('tcia', repos)
+
+    # source = TCIAInterface(address='https://services.cancerimagingarchive.net/services/v3/TCIA',
+    #                        api_key=os.environ['TCIA_API_KEY'])
 
     # Apparently API key doesn't work for NLST b/c it is a private collection
     # series = source.get_series_from_id('1.2.840.113654.2.55.4303894980888172655039251025765147023')
